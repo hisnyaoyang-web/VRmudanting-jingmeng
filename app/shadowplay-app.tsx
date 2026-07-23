@@ -2,7 +2,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   WagmiProvider,
   useAccount,
@@ -202,6 +202,25 @@ function Experience() {
 
 export default function ShadowplayApp() {
   const queryClient = useMemo(() => new QueryClient(), []);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <main className="app-shell" aria-busy="true">
+        <header className="topbar">
+          <div className="brand">
+            <div className="brand-seal" aria-hidden="true">影</div>
+            <div>
+              <h1>幕影铸梦</h1>
+              <p>正在升起皮影戏台…</p>
+            </div>
+          </div>
+        </header>
+      </main>
+    );
+  }
+
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
