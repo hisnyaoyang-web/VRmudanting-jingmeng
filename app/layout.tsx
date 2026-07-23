@@ -2,20 +2,20 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "幕影铸梦｜WebSpatial × Injective",
-  description: "一座可透光、可遮挡、可铸造的空间皮影戏台。",
+  title: "园中影｜WebSpatial × Injective",
+  description: "在方块苏州园林中，看一折会透光、会遮挡、可铸造的皮影戏。",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
   openGraph: {
-    title: "幕影铸梦",
-    description: "WebSpatial × Injective：把一出皮影戏铸成链上藏品。",
+    title: "园中影",
+    description: "走进方块苏州园林，把一折皮影戏铸成链上藏品。",
     images: [{ url: "/og.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "幕影铸梦",
-    description: "WebSpatial × Injective：把一出皮影戏铸成链上藏品。",
+    title: "园中影",
+    description: "走进方块苏州园林，把一折皮影戏铸成链上藏品。",
     images: ["/og.png"],
   },
 };

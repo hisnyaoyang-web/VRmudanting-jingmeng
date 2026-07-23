@@ -25,14 +25,14 @@ export const injectiveTestnet = defineChain({
 export const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
 
-const connectors = walletConnectProjectId
+const connectors = walletConnectProjectId && typeof window !== "undefined"
   ? [
       walletConnect({
         projectId: walletConnectProjectId,
         showQrModal: true,
         metadata: {
-          name: "幕影铸梦",
-          description: "WebSpatial × Injective 文化藏品 Demo",
+          name: "园中影",
+          description: "方块苏州园林中的 WebSpatial × Injective 皮影 Demo",
           url:
             process.env.NEXT_PUBLIC_SITE_URL ??
             (typeof window === "undefined" ? "https://localhost" : window.location.origin),

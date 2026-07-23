@@ -12,12 +12,12 @@ async function render() {
   );
 }
 
-test("server-renders the shadowplay experience shell", async () => {
+test("server-renders the garden shadowplay experience shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /<title>幕影铸梦/);
+  assert.match(html, /<title>园中影/);
   assert.match(html, /WebSpatial/);
   assert.match(html, /Injective/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
