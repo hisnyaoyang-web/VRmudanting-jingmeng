@@ -1,0 +1,15 @@
+{
+  "name": "幕影铸梦",
+  "short_name": "幕影铸梦",
+  "description": "WebSpatial × Injective 文化藏品演示",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0807",
+  "theme_color": "#481812",
+  "xr_main_scene": {
+    "default_size": {
+      "width": 1280,
+      "height": 820
+    }
+  }
+}
