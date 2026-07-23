@@ -13,7 +13,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { BaseError, type Address } from "viem";
-import ShadowStage from "./shadow-stage";
+import ShadowStage, { type MotionPreset } from "./shadow-stage";
 import {
   injectiveTestnet,
   shadowRelicAbi,
@@ -33,6 +33,8 @@ function Experience() {
   const [playing, setPlaying] = useState(true);
   const [watched, setWatched] = useState(false);
   const [cycle, setCycle] = useState(0);
+  const [preset, setPreset] = useState<MotionPreset>("walk");
+  const [exploded, setExploded] = useState(false);
   const { address, isConnected, chainId } = useAccount();
   const { connectors, connect, isPending: isConnecting, error: connectError } =
     useConnect();
@@ -54,6 +56,13 @@ function Experience() {
   const success = receipt.isSuccess;
 
   const replay = () => {
+    setWatched(false);
+    setPlaying(true);
+    setCycle((value) => value + 1);
+  };
+
+  const playPreset = (nextPreset: MotionPreset) => {
+    setPreset(nextPreset);
     setWatched(false);
     setPlaying(true);
     setCycle((value) => value + 1);
@@ -133,11 +142,35 @@ function Experience() {
             <ShadowStage
               playing={playing}
               cycle={cycle}
+              preset={preset}
+              exploded={exploded}
               onComplete={() => {
                 setPlaying(false);
                 setWatched(true);
               }}
             />
+          </div>
+          <div className="stage-controls" aria-label="皮影动作与视角">
+            <span>动作预设</span>
+            {([
+              ["walk", "巡场"],
+              ["salute", "亮相"],
+              ["spear", "挥枪"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                className={preset === value ? "selected" : ""}
+                onClick={() => playPreset(value)}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              className={exploded ? "selected" : ""}
+              onClick={() => setExploded((value) => !value)}
+            >
+              {exploded ? "回到正面" : "侧看纸片"}
+            </button>
           </div>
           <div className="stage-hint">WEBSPATIAL VOLUMETRIC STAGE<br />TRANSMISSION · DEPTH · SHADOW</div>
         </div>
