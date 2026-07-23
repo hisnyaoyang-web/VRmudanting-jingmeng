@@ -370,7 +370,7 @@ function GardenWorld(props: ShadowStageProps) {
 export default function ShadowStage(props: ShadowStageProps) {
   return (
     <Canvas
-      shadows
+      shadows="basic"
       dpr={[1, 1.45]}
       camera={{ position: [7.6, 3.5, 10.2], fov: 44 }}
       gl={{
