@@ -134,7 +134,7 @@ button { color: inherit; font: inherit; }
   position: absolute;
   z-index: 8;
   left: 50%;
-  bottom: 118px;
+  bottom: 190px;
   width: min(620px, 60vw);
   transform: translateX(-50%);
   padding: 12px 20px 14px;
@@ -403,23 +403,34 @@ button { color: inherit; font: inherit; }
   width: 78px; height: 78px;
   border-radius: 50%;
 }
-.stage-countdown {
+.control-deck button > strong {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 20px);
+  bottom: calc(100% + 15px);
+  z-index: 4;
   transform: translateX(-50%);
   display: grid;
   place-items: center;
-  width: 150px; height: 150px;
+  width: 54px; height: 54px;
   border: 1px solid rgba(235,190,105,.65);
   border-radius: 50%;
   background: radial-gradient(circle, rgba(129,70,29,.72), rgba(5,10,11,.9) 68%);
-  box-shadow: 0 0 0 14px rgba(222,166,78,.07), 0 0 55px rgba(207,113,38,.34);
-  animation: countdown-pulse .72s ease-out both;
+  box-shadow: 0 0 0 9px rgba(222,166,78,.07), 0 0 34px rgba(207,113,38,.42);
+  color: #ffe0a1;
+  font: 29px/1 ui-monospace, monospace;
+  text-shadow: 0 0 16px #d56d2c;
+  animation: cue-countdown .72s ease-out both;
+  pointer-events: none;
 }
-.stage-countdown small { position: absolute; top: 28px; color: #ad8955; font-size: 9px; letter-spacing: .12em; }
-.stage-countdown b { color: #ffe0a1; font: 62px/1 ui-monospace, monospace; text-shadow: 0 0 24px #d56d2c; }
-@keyframes countdown-pulse {
+.control-deck button > strong::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border: 1px solid rgba(235,181,93,.36);
+  border-radius: 50%;
+  animation: key-wave .75s ease-out infinite;
+}
+@keyframes cue-countdown {
   from { opacity: 0; transform: translateX(-50%) scale(.55); }
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
@@ -581,7 +592,7 @@ button { color: inherit; font: inherit; }
   .dialogue-portrait.side-left { left: 8px; }
   .dialogue-portrait.side-right { right: 8px; }
   .gal-dialogue p { font-size: 12px; line-height: 1.75; }
-  .performance-subtitle { bottom: 132px; width: calc(100vw - 32px); }
+  .performance-subtitle { bottom: 145px; width: calc(100vw - 32px); }
   .control-deck {
     width: calc(100vw - 24px);
     min-height: 112px;
@@ -597,9 +608,7 @@ button { color: inherit; font: inherit; }
   .action-keys { gap: 7px; }
   .action-keys button { width: 52px; height: 52px; }
   .deck-label { padding-left: 10px; font-size: 8px; }
-  .stage-countdown { width: 106px; height: 106px; bottom: calc(100% + 10px); }
-  .stage-countdown small { top: 17px; font-size: 7px; }
-  .stage-countdown b { font-size: 43px; }
+  .control-deck button > strong { width: 42px; height: 42px; bottom: calc(100% + 9px); font-size: 23px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

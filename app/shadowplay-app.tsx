@@ -37,6 +37,7 @@ import {
 
 const contractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as Address | undefined;
 const DEFAULT_STORY_URL = "/stories/moongate-night/story.json";
+const PERFORMANCE_LEAD_IN_MS = 3000;
 
 function short(value?: string) {
   return value ? `${value.slice(0, 6)}…${value.slice(-4)}` : "";
@@ -46,12 +47,18 @@ function toPuppetCommand(action: StoryAction): PuppetCommand {
   return action === "salute" ? "hi" : action;
 }
 
+function actionControlKey(action: StoryAction) {
+  return {
+    left: "A", right: "D", up: "W", down: "S",
+    salute: "J", run: "K", flying: "L",
+  }[action];
+}
+
 function Experience() {
   const [story, setStory] = useState<StoryPackage | null>(null);
   const [storyUrl, setStoryUrl] = useState(DEFAULT_STORY_URL);
   const [loadError, setLoadError] = useState("");
-  const [phase, setPhase] = useState<"loading" | "intro" | "countdown" | "performance" | "outro">("loading");
-  const [countdown, setCountdown] = useState(3);
+  const [phase, setPhase] = useState<"loading" | "intro" | "performance" | "outro">("loading");
   const [activeKey, setActiveKey] = useState("");
   const [dialogueIndex, setDialogueIndex] = useState(0);
   const [dialogueChars, setDialogueChars] = useState(0);
@@ -64,7 +71,7 @@ function Experience() {
   const [, setBestCombo] = useState(0);
   const [judgment, setJudgment] = useState("");
   const [grade, setGrade] = useState<StoryGrade>("bad");
-  const [, setJudged] = useState<boolean[]>([]);
+  const [judged, setJudged] = useState<boolean[]>([]);
   const judgedRef = useRef(new Set<number>());
   const scoreRef = useRef(0);
   const heldDirections = useRef(new Set<PuppetCommand>());
@@ -131,8 +138,7 @@ function Experience() {
     if (!story) return;
     setDialogueIndex(0);
     setDialogueChars(0);
-    setPhase("countdown");
-    setCountdown(3);
+    setPhase("performance");
     setProgress(0);
     setScore(0);
     scoreRef.current = 0;
@@ -143,22 +149,9 @@ function Experience() {
     setJudged(story.performance.cues.map(() => false));
     judgedRef.current = new Set();
     setPuppet({ x: 0, y: 0, action: "walk", nonce: 0 });
-    setPlaying(false);
+    setPlaying(true);
+    setCycle((value) => value + 1);
   }, [story]);
-
-  useEffect(() => {
-    if (phase !== "countdown") return;
-    const timer = window.setTimeout(() => {
-      if (countdown > 1) {
-        setCountdown((value) => value - 1);
-      } else {
-        setPhase("performance");
-        setPlaying(true);
-        setCycle((value) => value + 1);
-      }
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [countdown, phase]);
 
   const advanceDialogue = useCallback(() => {
     if (!dialogueComplete) {
@@ -173,7 +166,15 @@ function Experience() {
     }
   }, [dialogueBeats.length, dialogueComplete, dialogueContent.length, dialogueIndex, phase, startPerformance]);
 
-  const showTimeMs = progress * (story?.performance.durationMs ?? 1);
+  const showTimeMs = progress * ((story?.performance.durationMs ?? 1) + PERFORMANCE_LEAD_IN_MS) - PERFORMANCE_LEAD_IN_MS;
+  const cues = story?.performance.cues ?? [];
+  const nextCueIndex = cues.findIndex((_, index) => !judged[index]);
+  const currentCue = nextCueIndex >= 0 ? cues[nextCueIndex] : undefined;
+  const cueDeltaMs = currentCue ? currentCue.atMs - showTimeMs : Number.POSITIVE_INFINITY;
+  const cueCountdown = currentCue && cueDeltaMs <= 3000 && cueDeltaMs >= -currentCue.windowMs / 2
+    ? Math.max(1, Math.ceil(cueDeltaMs / 1000))
+    : null;
+  const promptedKey = currentCue ? actionControlKey(currentCue.action) : "";
   const perform = useCallback((command: PuppetCommand) => {
     if (!story || phase !== "performance" || !playing) return;
     setPuppet((current) => {
@@ -269,7 +270,7 @@ function Experience() {
   const handleProgress = useCallback((value: number) => {
     if (!story) return;
     setProgress(value);
-    const now = value * story.performance.durationMs;
+    const now = value * (story.performance.durationMs + PERFORMANCE_LEAD_IN_MS) - PERFORMANCE_LEAD_IN_MS;
     const missed = story.performance.cues.findIndex(
       (cue, index) => now > cue.atMs + cue.windowMs / 2 && !judgedRef.current.has(index),
     );
@@ -381,7 +382,7 @@ function Experience() {
         <ShadowStage
           playing={playing}
           cycle={cycle}
-          durationMs={story!.performance.durationMs}
+          durationMs={story!.performance.durationMs + PERFORMANCE_LEAD_IN_MS}
           puppetInput={puppet}
           onXrCommand={perform}
           onProgress={(value) => handleProgress(value)}
@@ -436,22 +437,17 @@ function Experience() {
       {judgment ? <div className="judgment-pop" enable-xr>{judgment}</div> : null}
 
       <aside className="control-deck" enable-xr style={{ ...xrBase, "--xr-back": "190", "--xr-depth": "32", "--xr-z-index": "60" } as React.CSSProperties}>
-        {phase === "countdown" ? (
-          <div className="stage-countdown" key={countdown}>
-            <small>演出即将开始</small><b>{countdown}</b>
-          </div>
-        ) : null}
         <section className="movement-keys" aria-label="移动按键">
-          <button className={activeKey === "W" ? "pressed" : ""} onClick={() => tapCommand("W", "up")}><kbd>W</kbd><span>前</span></button>
-          <button className={activeKey === "A" ? "pressed" : ""} onClick={() => tapCommand("A", "left")}><kbd>A</kbd><span>左</span></button>
-          <button className={activeKey === "S" ? "pressed" : ""} onClick={() => tapCommand("S", "down")}><kbd>S</kbd><span>后</span></button>
-          <button className={activeKey === "D" ? "pressed" : ""} onClick={() => tapCommand("D", "right")}><kbd>D</kbd><span>右</span></button>
+          <button className={activeKey === "W" ? "pressed" : ""} onClick={() => tapCommand("W", "up")}>{promptedKey === "W" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>W</kbd><span>前</span></button>
+          <button className={activeKey === "A" ? "pressed" : ""} onClick={() => tapCommand("A", "left")}>{promptedKey === "A" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>A</kbd><span>左</span></button>
+          <button className={activeKey === "S" ? "pressed" : ""} onClick={() => tapCommand("S", "down")}>{promptedKey === "S" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>S</kbd><span>后</span></button>
+          <button className={activeKey === "D" ? "pressed" : ""} onClick={() => tapCommand("D", "right")}>{promptedKey === "D" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>D</kbd><span>右</span></button>
         </section>
         <div className="deck-label"><i />按住<br />移动</div>
         <section className="action-keys" aria-label="招式按键">
-          <button className={activeKey === "J" ? "pressed" : ""} onClick={() => tapCommand("J", "hi")}><kbd>J</kbd><span>见礼</span></button>
-          <button className={activeKey === "K" ? "pressed" : ""} onClick={() => tapCommand("K", "run")}><kbd>K</kbd><span>疾行</span></button>
-          <button className={activeKey === "L" ? "pressed" : ""} onClick={() => tapCommand("L", "flying")}><kbd>L</kbd><span>飞袖</span></button>
+          <button className={activeKey === "J" ? "pressed" : ""} onClick={() => tapCommand("J", "hi")}>{promptedKey === "J" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>J</kbd><span>见礼</span></button>
+          <button className={activeKey === "K" ? "pressed" : ""} onClick={() => tapCommand("K", "run")}>{promptedKey === "K" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>K</kbd><span>疾行</span></button>
+          <button className={activeKey === "L" ? "pressed" : ""} onClick={() => tapCommand("L", "flying")}>{promptedKey === "L" && cueCountdown ? <strong key={cueCountdown}>{cueCountdown}</strong> : null}<kbd>L</kbd><span>飞袖</span></button>
         </section>
       </aside>
       <nav className="ritual-actions">
