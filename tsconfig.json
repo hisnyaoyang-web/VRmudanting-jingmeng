@@ -12,6 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "@webspatial/react-sdk",
     "incremental": true,
     "plugins": [
       {

@@ -17,6 +17,11 @@ body {
   color: #f3ead7;
   font-family: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
 }
+html.is-spatial,
+html.is-spatial body {
+  background-color: transparent;
+  --xr-background-material: transparent;
+}
 button { color: inherit; font: inherit; }
 
 .garden-shell {
