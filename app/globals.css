@@ -61,41 +61,6 @@ button { color: inherit; font: inherit; }
   backdrop-filter: blur(9px);
 }
 
-.rhythm-strike {
-  --beat: 0;
-  position: absolute;
-  z-index: 6;
-  left: 50%;
-  top: 52%;
-  width: 118px;
-  height: 118px;
-  transform: translate(-50%, -50%);
-  border: 1px solid rgba(220,170,95,.72);
-  border-radius: 50%;
-  background: rgba(72,25,18,.3);
-  box-shadow: 0 0 0 12px rgba(213,172,101,.05), inset 0 0 35px rgba(226,113,48,.12);
-  display: grid;
-  place-content: center;
-  gap: 7px;
-  cursor: pointer;
-  backdrop-filter: blur(2px);
-}
-.rhythm-strike::before {
-  content: "";
-  position: absolute;
-  inset: calc(-42px + var(--beat) * 34px);
-  border: 1px solid rgba(241,194,103, calc(.16 + var(--beat) * .72));
-  border-radius: 50%;
-  box-shadow: 0 0 calc(var(--beat) * 28px) rgba(244,141,57,.5);
-  transition: inset .08s linear;
-}
-.rhythm-strike b { color: #f2cc83; font-size: 1.8rem; font-weight: 500; }
-.rhythm-strike small { color: rgba(242,231,208,.62); font-size: 9px; letter-spacing: .1em; }
-.rhythm-strike i { position: absolute; inset: 0; pointer-events: none; }
-.rhythm-strike.is-绝 { background: rgba(169,59,39,.72); transform: translate(-50%, -50%) scale(1.08); }
-.rhythm-strike.is-妙 { background: rgba(154,105,47,.62); }
-.rhythm-strike.is-失拍 { filter: saturate(.2); }
-
 .score-hud {
   position: absolute;
   z-index: 6;
@@ -351,33 +316,43 @@ button { color: inherit; font: inherit; }
   box-shadow: 0 0 12px #83c59b;
 }
 
-.show-progress {
+.control-guide {
   position: absolute;
   z-index: 5;
   left: 50%;
-  bottom: clamp(25px, 4vw, 55px);
+  bottom: clamp(20px, 3vw, 42px);
   transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: 30px minmax(180px, 27vw) 42px;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  padding: 10px 16px;
+  border: 1px solid rgba(209,172,106,.28);
+  background: rgba(4,11,13,.72);
+  box-shadow: 0 12px 36px rgba(0,0,0,.28);
+  backdrop-filter: blur(12px);
 }
-.show-progress button {
-  width: 29px; height: 29px;
-  border: 1px solid rgba(229,211,172,.45);
-  border-radius: 50%;
-  background: rgba(5,12,14,.46);
-  cursor: pointer;
-  font: 10px ui-monospace, monospace;
+.control-guide > small {
+  color: #c8a367;
+  font: 9px ui-monospace, monospace;
+  letter-spacing: .14em;
+  white-space: nowrap;
 }
-.progress-track { height: 1px; background: rgba(229,211,172,.25); }
-.progress-track i {
-  display: block; height: 1px;
-  background: #ebc777;
-  box-shadow: 0 0 8px rgba(235,199,119,.8);
-  transition: width .15s linear;
+.control-guide div { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.control-guide kbd {
+  min-width: 27px;
+  padding: 4px 6px;
+  border: 1px solid rgba(231,202,144,.34);
+  background: rgba(190,136,61,.1);
+  color: #efd59f;
+  font: 9px ui-monospace, monospace;
+  text-align: center;
 }
-.show-progress span { color: rgba(229,211,172,.48); font: 9px ui-monospace, monospace; }
+.control-guide span { color: rgba(226,215,190,.58); font-size: 9px; }
+.control-guide em {
+  color: rgba(177,164,138,.48);
+  font: normal 8px ui-monospace, monospace;
+  white-space: nowrap;
+}
 
 .ritual-actions {
   position: absolute;
@@ -507,13 +482,10 @@ button { color: inherit; font: inherit; }
   .round-action { width: 48px; height: 48px; }
   .mint-seal { width: 62px; height: 62px; }
   .mint-seal b { font-size: 16px; }
-  .show-progress {
-    left: 20px; bottom: 88px; transform: none;
-    grid-template-columns: 28px minmax(130px, 48vw) 38px;
-  }
+  .control-guide { left: 16px; right: 16px; bottom: 88px; transform: none; overflow-x: auto; }
+  .control-guide em { display: none; }
   .garden-panel { right: 18px; }
   .webxr-entry { right: 18px; top: 78px; }
-  .rhythm-strike { width: 96px; height: 96px; }
   .score-hud { top: 25%; }
   .script-board {
     top: auto;

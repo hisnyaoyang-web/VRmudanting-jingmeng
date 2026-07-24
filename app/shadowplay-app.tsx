@@ -72,6 +72,7 @@ function Experience() {
   const [judged, setJudged] = useState<boolean[]>([]);
   const judgedRef = useRef(new Set<number>());
   const scoreRef = useRef(0);
+  const heldDirections = useRef(new Set<PuppetCommand>());
   const [puppet, setPuppet] = useState<{ x: number; y: number; action: PuppetAction; nonce: number }>({
     x: 0, y: 0, action: "walk", nonce: 0,
   });
@@ -172,7 +173,7 @@ function Experience() {
   const perform = useCallback((command: PuppetCommand) => {
     if (!story || phase !== "performance" || !playing) return;
     setPuppet((current) => {
-      const step = 0.42;
+      const step = 0.08;
       const x = command === "left" ? Math.max(-2.3, current.x - step)
         : command === "right" ? Math.min(2.3, current.x + step) : current.x;
       const y = command === "up" ? Math.min(1.1, current.y + step)
@@ -214,6 +215,32 @@ function Experience() {
       return next;
     });
   }, [phase, playing, showTimeMs, story]);
+
+  useEffect(() => {
+    if (phase !== "performance" || !playing) return;
+    let frame = 0;
+    let previous = performance.now();
+
+    const move = (now: number) => {
+      const delta = Math.min(0.05, (now - previous) / 1000);
+      previous = now;
+      const held = heldDirections.current;
+      const horizontal = Number(held.has("right")) - Number(held.has("left"));
+      const vertical = Number(held.has("up")) - Number(held.has("down"));
+      if (horizontal || vertical) {
+        setPuppet((current) => ({
+          ...current,
+          x: Math.max(-2.3, Math.min(2.3, current.x + horizontal * delta * 1.75)),
+          y: Math.max(-0.1, Math.min(1.1, current.y + vertical * delta * 1.25)),
+          action: "walk",
+        }));
+      }
+      frame = window.requestAnimationFrame(move);
+    };
+
+    frame = window.requestAnimationFrame(move);
+    return () => window.cancelAnimationFrame(frame);
+  }, [phase, playing]);
 
   const finishPerformance = useCallback(() => {
     if (!story) return;
@@ -258,11 +285,30 @@ function Experience() {
       const command = map[event.code];
       if (command) {
         event.preventDefault();
+        if (command === "left" || command === "right" || command === "up" || command === "down") {
+          heldDirections.current.add(command);
+        }
+        if (event.repeat) return;
         perform(command);
       }
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      const map: Record<string, PuppetCommand> = {
+        KeyA: "left", ArrowLeft: "left", KeyD: "right", ArrowRight: "right",
+        KeyW: "up", ArrowUp: "up", KeyS: "down", ArrowDown: "down",
+      };
+      const command = map[event.code];
+      if (command) heldDirections.current.delete(command);
+    };
+    const clearDirections = () => heldDirections.current.clear();
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clearDirections);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", clearDirections);
+    };
   }, [advanceDialogue, perform, phase]);
 
   useEffect(() => {
@@ -353,21 +399,6 @@ function Experience() {
         </button>
       ) : null}
 
-      {phase === "performance" && currentCue ? (
-        <button
-          className={`rhythm-strike ${judgment ? `is-${judgment}` : ""}`}
-          enable-xr
-          style={{
-            "--beat": `${Math.max(0, 1 - Math.abs(currentCue.atMs - showTimeMs) / Math.max(1, currentCue.windowMs))}`,
-            "--xr-back": "155", "--xr-depth": "20", "--xr-z-index": "45",
-            "--xr-background-material": "none",
-          } as React.CSSProperties}
-          onClick={() => perform(toPuppetCommand(currentCue.action))}
-        >
-          <i /><b>{judgment || actionKey(currentCue.action)}</b><small>{currentCue.label}</small>
-        </button>
-      ) : null}
-
       {phase === "performance" ? (
         <div className="performance-subtitle" enable-xr style={{ ...xrBase, "--xr-back": "120", "--xr-z-index": "38" } as React.CSSProperties}>
           <small>{currentSpeaker?.name ?? "旁白"}</small>
@@ -414,14 +445,22 @@ function Experience() {
       ) : null}
       {judgment ? <div className="judgment-pop" enable-xr>{judgment}</div> : null}
 
+      <aside className="control-guide" enable-xr style={{ ...xrBase, "--xr-back": "72", "--xr-depth": "18" } as React.CSSProperties}>
+        <small>操作辅助</small>
+        <div><kbd>WASD</kbd><span>按住移动</span></div>
+        <div><kbd>方向键</kbd><span>按住移动</span></div>
+        <div><kbd>J</kbd><span>亮相 / 见礼</span></div>
+        <div><kbd>K</kbd><span>疾行</span></div>
+        <div><kbd>L</kbd><span>飞袖</span></div>
+        <em>WebXR：摇杆移动 · 扳机确认</em>
+      </aside>
+
       <header className="garden-header">
         <div className="garden-title"><span className="title-mark">园</span><div><h1>园中影铺</h1><p>STORY API · {story!.schemaVersion}</p></div></div>
         <div className="act-label"><span>壹</span><p>{phase === "intro" ? "上场" : phase === "performance" ? "演出" : "谢幕"}<br /><b>{story!.title}</b></p></div>
       </header>
 
       <div className="network-status"><i /> STORY · {story!.id}</div>
-      <div className="show-progress"><button onClick={phase === "performance" ? () => setPlaying((value) => !value) : startPerformance}>{playing ? "Ⅱ" : "▶"}</button><div className="progress-track"><i style={{ width: `${progress * 100}%` }} /></div><span>{Math.floor(showTimeMs / 1000)} / {Math.round(story!.performance.durationMs / 1000)}</span></div>
-
       <nav className="ritual-actions">
         <button className="round-action" onClick={() => setPanelOpen((value) => !value)}><span>◉</span><small>信息</small></button>
         <button className={`round-action ${isConnected ? "connected" : ""}`} onClick={isConnected ? () => disconnect() : connectWallet} disabled={!walletReady}><span>▣</span><small>{isConnected ? "已连" : "连接"}</small></button>

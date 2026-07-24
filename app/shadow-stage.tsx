@@ -117,6 +117,11 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput, 
   const lastProgressReport = useRef(-1);
   const cueIndex = useRef(-1);
   const completedCycle = useRef(-1);
+  const targetPosition = useRef({ x: 0, y: 0 });
+  const puppetX = puppetInput?.x;
+  const puppetY = puppetInput?.y;
+  const puppetAction = puppetInput?.action;
+  const puppetNonce = puppetInput?.nonce;
 
   useEffect(() => {
     let cancelled = false;
@@ -203,23 +208,30 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput, 
   }, [cycle]);
 
   useEffect(() => {
+    if (puppetX === undefined || puppetY === undefined) return;
+    targetPosition.current = { x: puppetX, y: puppetY };
+  }, [puppetX, puppetY]);
+
+  useEffect(() => {
     const puppet = loaded.current;
-    if (!puppet || !puppetInput) return;
-    puppet.root.position.x = THREE.MathUtils.lerp(puppet.root.position.x, puppetInput.x, 0.8);
-    puppet.root.position.y = 0.2 + puppetInput.y;
-    const action = puppet.actions[puppetInput.action];
+    if (!puppet || !puppetAction) return;
+    const action = puppet.actions[puppetAction];
     Object.values(puppet.actions).forEach((candidate) => candidate.fadeOut(0.12));
     action.reset();
     action.setLoop(
-      puppetInput.action === "walk" || puppetInput.action === "run" ? THREE.LoopRepeat : THREE.LoopOnce,
-      puppetInput.action === "walk" || puppetInput.action === "run" ? Infinity : 1,
+      puppetAction === "walk" || puppetAction === "run" ? THREE.LoopRepeat : THREE.LoopOnce,
+      puppetAction === "walk" || puppetAction === "run" ? Infinity : 1,
     );
     action.fadeIn(0.12).play();
-  }, [puppetInput]);
+  }, [puppetAction, puppetNonce]);
 
   useFrame((_, delta) => {
     const puppet = loaded.current;
-    if (!puppet || !playing) return;
+    if (!puppet) return;
+    const follow = 1 - Math.exp(-delta * 12);
+    puppet.root.position.x = THREE.MathUtils.lerp(puppet.root.position.x, targetPosition.current.x, follow);
+    puppet.root.position.y = THREE.MathUtils.lerp(puppet.root.position.y, 0.2 + targetPosition.current.y, follow);
+    if (!playing) return;
     const showDuration = (durationMs ?? SHOW_DURATION * 1000) / 1000;
     elapsed.current = Math.min(elapsed.current + delta, showDuration);
     const time = elapsed.current;
