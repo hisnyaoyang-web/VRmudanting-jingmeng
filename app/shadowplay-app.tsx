@@ -326,10 +326,8 @@ function Experience() {
         Math.max(1, Math.floor((showTimeMs - performanceLine.atMs) / 1000 * story!.performance.textPlayback.charsPerSecond)),
       )
     : "";
-  const castEntries = Object.entries(story?.cast ?? {});
   const currentSpeakerKey = phase === "performance" ? performanceLine?.speaker : dialogueBeat?.speaker;
   const currentSpeaker = currentSpeakerKey ? story?.cast[currentSpeakerKey] : undefined;
-  const customerEntries = castEntries.filter(([key, member]) => key !== "narrator" && key !== "shopkeeper" && member.portrait);
 
   const walletReady = Boolean(walletConnectProjectId && connectors.length);
   const success = receipt.isSuccess;
@@ -375,28 +373,35 @@ function Experience() {
       </section>
 
       {(phase === "intro" || phase === "outro") && dialogueBeat ? (
-        <button
-          className="gal-dialogue"
-          enable-xr
-          style={{ ...xrBase, "--xr-back": "150", "--xr-depth": "24", "--xr-z-index": "50" } as React.CSSProperties}
-          onClick={advanceDialogue}
-        >
+        <>
           {currentSpeaker?.portrait ? (
-            <Image
-              src={resolveAsset(storyUrl, story!, currentSpeaker.portrait)}
-              alt={currentSpeaker.name}
-              width={260}
-              height={360}
-              unoptimized
-            />
+            <div
+              className={`dialogue-portrait side-${currentSpeaker.side ?? "left"}`}
+              enable-xr
+              style={{ ...xrBase, "--xr-back": "175", "--xr-depth": "34", "--xr-z-index": "55" } as React.CSSProperties}
+            >
+              <Image
+                src={resolveAsset(storyUrl, story!, currentSpeaker.portrait)}
+                alt={`${currentSpeaker.name}立绘`}
+                width={360}
+                height={520}
+                priority
+                unoptimized
+              />
+            </div>
           ) : null}
-          <span>
+          <button
+            className="gal-dialogue"
+            enable-xr
+            style={{ ...xrBase, "--xr-back": "145", "--xr-depth": "22", "--xr-z-index": "50" } as React.CSSProperties}
+            onClick={advanceDialogue}
+          >
             <small>{phase === "intro" ? "客人上场" : `演出结局 · ${gradeLabel}`}</small>
             <b>{currentSpeaker?.name ?? "旁白"}</b>
             <p>{dialogueVisible}<i /></p>
             <em>{dialogueComplete ? "点击继续" : "点击显示全文"}</em>
-          </span>
-        </button>
+          </button>
+        </>
       ) : null}
 
       {phase === "performance" ? (
@@ -423,20 +428,6 @@ function Experience() {
         </ol>
         <small>移动：WASD / 方向键　招式：J K L</small>
       </aside>
-
-      <section className="spatial-audience" aria-label="今夜客人">
-        {customerEntries.map(([key, member], index) => (
-          <article
-            key={key}
-            className={`guest-card ${currentSpeakerKey === key ? "active" : ""}`}
-            enable-xr
-            style={{ ...xrBase, "--xr-back": `${50 + index * 12}`, "--xr-depth": "22" } as React.CSSProperties}
-          >
-            <Image src={resolveAsset(storyUrl, story!, member.portrait)} alt={`${member.name}立绘`} width={64} height={104} unoptimized />
-            <div><small>{story!.customerId}</small><h3>{member.name}</h3><p>{currentSpeakerKey === key ? dialogueBeat?.text : "静候演出。"}</p></div>
-          </article>
-        ))}
-      </section>
 
       {phase === "performance" ? (
         <div className="score-hud" enable-xr style={{ ...xrBase, "--xr-back": "110" } as React.CSSProperties}>
