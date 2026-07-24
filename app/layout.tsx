@@ -5,7 +5,6 @@ import SpatialProvider from "./spatial-provider";
 export const metadata: Metadata = {
   title: "园中影铺｜WebXR 皮影掌柜",
   description: "经营一间皮影铺，照着剧本操纵角色，为不同客人演出属于你的故事。",
-  manifest: "/manifest.webmanifest",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
@@ -27,6 +26,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
+      <head>
+        <link rel="manifest" href="/app.webmanifest" />
+      </head>
       <body><SpatialProvider>{children}</SpatialProvider></body>
     </html>
   );
