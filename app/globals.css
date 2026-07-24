@@ -114,6 +114,113 @@ button { color: inherit; font: inherit; }
   text-shadow: 0 0 20px #bf4b27;
   animation: judgment-rise .52s ease-out both;
 }
+
+.script-board {
+  position: absolute;
+  z-index: 7;
+  left: clamp(18px, 3vw, 46px);
+  top: 150px;
+  width: 270px;
+  padding: 20px 20px 17px;
+  border: 1px solid rgba(213,172,101,.34);
+  background:
+    linear-gradient(145deg, rgba(19,27,25,.94), rgba(8,17,19,.9)),
+    url("/stage/moongate-backdrop.webp") center/cover;
+  box-shadow: 0 18px 55px rgba(0,0,0,.38);
+  backdrop-filter: blur(15px);
+}
+.script-board > p {
+  margin: 0;
+  color: #bc965c;
+  font: 9px ui-monospace, monospace;
+  letter-spacing: .15em;
+}
+.script-board h2 { margin: 10px 0 7px; font-size: 1.4rem; font-weight: 500; letter-spacing: .08em; }
+.script-board blockquote {
+  min-height: 42px;
+  margin: 0 0 13px;
+  color: #c8bda2;
+  font-size: 11px;
+  line-height: 1.75;
+}
+.script-board ol { list-style: none; padding: 0; margin: 0; }
+.script-board li {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(213,172,101,.1);
+  color: #6f766d;
+  font-size: 10px;
+}
+.script-board li span {
+  width: 17px; height: 17px;
+  display: grid; place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font: 8px ui-monospace, monospace;
+}
+.script-board li.current { color: #f1cb7e; }
+.script-board li.done { color: #779b82; }
+.script-board kbd {
+  min-width: 33px;
+  padding: 3px 5px;
+  border: 1px solid rgba(213,172,101,.25);
+  background: rgba(0,0,0,.24);
+  color: inherit;
+  text-align: center;
+  font: 8px ui-monospace, monospace;
+}
+.script-board > small {
+  display: block;
+  margin-top: 12px;
+  color: rgba(221,211,183,.42);
+  font: 8px ui-monospace, monospace;
+}
+
+.spatial-audience {
+  position: absolute;
+  z-index: 6;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.guest-card {
+  width: 172px;
+  height: 104px;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  overflow: hidden;
+  border: 1px solid rgba(213,172,101,.16);
+  background: rgba(5,13,15,.72);
+  opacity: .56;
+  transform: translateY(-8px) scale(.94);
+  transition: opacity .25s ease, transform .25s ease, border-color .25s ease;
+  backdrop-filter: blur(10px);
+}
+.guest-card.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  border-color: rgba(231,188,105,.6);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 25px rgba(194,90,40,.12);
+}
+.guest-card img { width: 64px; height: 104px; object-fit: cover; object-position: top center; }
+.guest-card div { padding: 11px 9px; min-width: 0; }
+.guest-card small { color: #997d55; font-size: 7px; letter-spacing: .08em; }
+.guest-card h3 { margin: 4px 0 6px; color: #e5d2aa; font-size: 13px; font-weight: 500; }
+.guest-card p {
+  margin: 0;
+  color: #999886;
+  font-size: 8px;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 @keyframes judgment-rise {
   from { opacity: 0; transform: translateY(18px) scale(.7) rotate(-8deg); }
   45% { opacity: 1; }
@@ -349,6 +456,18 @@ button { color: inherit; font: inherit; }
   .webxr-entry { right: 18px; top: 78px; }
   .rhythm-strike { width: 96px; height: 96px; }
   .score-hud { top: 25%; }
+  .script-board {
+    top: auto;
+    bottom: 156px;
+    left: 16px;
+    width: min(250px, calc(100vw - 32px));
+    padding: 14px;
+  }
+  .script-board ol li:not(.current) { display: none; }
+  .script-board blockquote { min-height: 0; }
+  .spatial-audience { top: 76px; width: calc(100vw - 32px); }
+  .guest-card { display: none; }
+  .guest-card.active { display: grid; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

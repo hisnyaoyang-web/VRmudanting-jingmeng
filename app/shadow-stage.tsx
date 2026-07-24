@@ -11,8 +11,17 @@ type ShadowStageProps = {
   cycle: number;
   onComplete: () => void;
   onProgress?: (progress: number, cue: string) => void;
-  onStrike?: () => void;
+  onXrCommand?: (command: PuppetCommand) => void;
+  puppetInput?: {
+    x: number;
+    y: number;
+    action: PuppetAction;
+    nonce: number;
+  };
 };
+
+export type PuppetAction = "hi" | "run" | "flying" | "walk";
+export type PuppetCommand = "left" | "right" | "up" | "down" | PuppetAction;
 
 type LoadedPuppet = {
   root: THREE.Group;
@@ -100,7 +109,7 @@ function preparePuppetMaterial(material: THREE.Material, texture: THREE.Texture)
   mapped.needsUpdate = true;
 }
 
-function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStageProps) {
+function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput }: ShadowStageProps) {
   const group = useRef<THREE.Group>(null);
   const loaded = useRef<LoadedPuppet | null>(null);
   const elapsed = useRef(0);
@@ -192,6 +201,21 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
     }
   }, [cycle]);
 
+  useEffect(() => {
+    const puppet = loaded.current;
+    if (!puppet || !puppetInput) return;
+    puppet.root.position.x = THREE.MathUtils.lerp(puppet.root.position.x, puppetInput.x, 0.8);
+    puppet.root.position.y = 0.2 + puppetInput.y;
+    const action = puppet.actions[puppetInput.action];
+    Object.values(puppet.actions).forEach((candidate) => candidate.fadeOut(0.12));
+    action.reset();
+    action.setLoop(
+      puppetInput.action === "walk" || puppetInput.action === "run" ? THREE.LoopRepeat : THREE.LoopOnce,
+      puppetInput.action === "walk" || puppetInput.action === "run" ? Infinity : 1,
+    );
+    action.fadeIn(0.12).play();
+  }, [puppetInput]);
+
   useFrame((_, delta) => {
     const puppet = loaded.current;
     if (!puppet || !playing) return;
@@ -230,6 +254,30 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
       <pointLight position={[0, 1.2, -1]} color="#ff9f43" intensity={15} distance={4.5} />
     </group>
   );
+}
+
+function XrInputBridge({ onCommand }: { onCommand?: (command: PuppetCommand) => void }) {
+  const { gl } = useThree();
+  const lastMove = useRef(0);
+
+  useFrame(({ clock }) => {
+    if (!onCommand || clock.elapsedTime - lastMove.current < 0.24) return;
+    const session = gl.xr.getSession();
+    for (const source of session?.inputSources ?? []) {
+      const axes = source.gamepad?.axes;
+      if (!axes?.length) continue;
+      const x = axes[axes.length - 2] ?? 0;
+      const y = axes[axes.length - 1] ?? 0;
+      if (Math.abs(x) > 0.55) {
+        onCommand(x > 0 ? "right" : "left");
+        lastMove.current = clock.elapsedTime;
+      } else if (Math.abs(y) > 0.55) {
+        onCommand(y > 0 ? "down" : "up");
+        lastMove.current = clock.elapsedTime;
+      }
+    }
+  });
+  return null;
 }
 
 function StageBox({
@@ -375,7 +423,7 @@ function GardenWorld(props: ShadowStageProps) {
 }
 
 export default function ShadowStage(props: ShadowStageProps) {
-  const { onStrike } = props;
+  const { onXrCommand } = props;
   const [renderer, setRenderer] = useState<THREE.WebGLRenderer | null>(null);
   const [xrSupported, setXrSupported] = useState(false);
   const [inXr, setInXr] = useState(false);
@@ -388,17 +436,23 @@ export default function ShadowStage(props: ShadowStageProps) {
   }, []);
 
   useEffect(() => {
-    if (!renderer || !onStrike) return;
+    if (!renderer || !onXrCommand) return;
     const left = renderer.xr.getController(0);
     const right = renderer.xr.getController(1);
-    const strike = () => onStrike();
-    left.addEventListener("selectstart", strike);
-    right.addEventListener("selectstart", strike);
+    const salute = () => onXrCommand("hi");
+    const fly = () => onXrCommand("flying");
+    const run = () => onXrCommand("run");
+    left.addEventListener("selectstart", salute);
+    right.addEventListener("selectstart", fly);
+    left.addEventListener("squeezestart", run);
+    right.addEventListener("squeezestart", run);
     return () => {
-      left.removeEventListener("selectstart", strike);
-      right.removeEventListener("selectstart", strike);
+      left.removeEventListener("selectstart", salute);
+      right.removeEventListener("selectstart", fly);
+      left.removeEventListener("squeezestart", run);
+      right.removeEventListener("squeezestart", run);
     };
-  }, [onStrike, renderer]);
+  }, [onXrCommand, renderer]);
 
   const enterWebXr = async () => {
     if (!renderer) return;
@@ -439,6 +493,7 @@ export default function ShadowStage(props: ShadowStageProps) {
       >
         <Suspense fallback={null}>
           <GardenWorld {...props} />
+          <XrInputBridge onCommand={onXrCommand} />
         </Suspense>
       </Canvas>
       {xrSupported && !inXr ? (
