@@ -254,7 +254,16 @@ function Experience() {
 
   return (
     <main className="garden-shell">
-      <section className="world" enable-xr>
+      <section
+        className="world"
+        enable-xr
+        style={{
+          "--xr-back": "140",
+          "--xr-depth": "180",
+          "--xr-z-index": "0",
+          "--xr-background-material": "none",
+        } as React.CSSProperties}
+      >
         <ShadowStage
           playing={playing}
           cycle={cycle}
@@ -270,6 +279,14 @@ function Experience() {
 
       <button
         className={`rhythm-strike ${judgment ? `is-${judgment}` : ""}`}
+        enable-xr
+        style={{
+          "--beat": `${Math.max(0, 1 - Math.abs(currentScript.at - showTime) / 1.1)}`,
+          "--xr-back": "-130",
+          "--xr-depth": "20",
+          "--xr-z-index": "40",
+          "--xr-background-material": "none",
+        } as React.CSSProperties}
         onClick={!started || watched ? startGame : () => perform(currentScript.command)}
         aria-label={!started || watched ? "开始演出" : `执行${currentScript.title}`}
       >
@@ -278,20 +295,52 @@ function Experience() {
         ) : watched ? (
           <><b>{score >= 480 ? "绝" : score >= 300 ? "妙" : "凡"}</b><small>{score} 分 · 再演一折</small></>
         ) : (
-          <><i style={{ "--beat": `${Math.max(0, 1 - Math.abs(currentScript.at - showTime) / 1.1)}` } as React.CSSProperties} /><b>{judgment || currentScript.key}</b></>
+          <><i /><b>{judgment || currentScript.key}</b></>
         )}
       </button>
 
       {started && !watched ? (
-        <div className="score-hud">
+        <div
+          className="score-hud"
+          enable-xr
+          style={{
+            "--xr-back": "-105",
+            "--xr-depth": "12",
+            "--xr-z-index": "32",
+            "--xr-background-material": "none",
+          } as React.CSSProperties}
+        >
           <span>得分 <b>{score}</b></span>
           <span>连击 <b>{combo}</b></span>
         </div>
       ) : null}
 
-      {judgment ? <div className="judgment-pop" key={`${judgment}-${score}`}>{judgment}</div> : null}
+      {judgment ? (
+        <div
+          className="judgment-pop"
+          key={`${judgment}-${score}`}
+          enable-xr
+          style={{
+            "--xr-back": "-155",
+            "--xr-depth": "8",
+            "--xr-z-index": "50",
+            "--xr-background-material": "none",
+          } as React.CSSProperties}
+        >
+          {judgment}
+        </div>
+      ) : null}
 
-      <aside className="script-board" enable-xr>
+      <aside
+        className="script-board"
+        enable-xr
+        style={{
+          "--xr-back": "-85",
+          "--xr-depth": "24",
+          "--xr-z-index": "30",
+          "--xr-background-material": "none",
+        } as React.CSSProperties}
+      >
         <p>今夜剧本 ·《月门照影》</p>
         <h2>{watched ? "一折戏毕" : currentScript.title}</h2>
         <blockquote>{watched ? ending : currentScript.line}</blockquote>
@@ -322,6 +371,12 @@ function Experience() {
             key={guest.name}
             className={`guest-card ${index === activeGuest ? "active" : ""}`}
             enable-xr
+            style={{
+              "--xr-back": `${35 + Math.abs(index - 1) * 18}`,
+              "--xr-depth": "22",
+              "--xr-z-index": `${18 - Math.abs(index - 1)}`,
+              "--xr-background-material": "none",
+            } as React.CSSProperties}
           >
             <Image src={guest.image} alt={`${guest.name}立绘`} width={64} height={104} />
             <div>
@@ -386,7 +441,16 @@ function Experience() {
         </button>
       </nav>
 
-      <aside className={`garden-panel ${panelOpen ? "open" : ""}`} enable-xr>
+      <aside
+        className={`garden-panel ${panelOpen ? "open" : ""}`}
+        enable-xr
+        style={{
+          "--xr-back": "-90",
+          "--xr-depth": "28",
+          "--xr-z-index": "34",
+          "--xr-background-material": "none",
+        } as React.CSSProperties}
+      >
         <button className="panel-close" onClick={() => setPanelOpen(false)} aria-label="关闭说明">×</button>
         <p className="panel-kicker">WEBSPATIAL · 第一折</p>
         <h2>月门照影，<br />一折入链。</h2>
