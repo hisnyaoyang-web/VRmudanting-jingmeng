@@ -90,6 +90,12 @@ function Experience() {
     x: 0, y: 0, action: "walk", nonce: 0,
   });
   const [panelOpen, setPanelOpen] = useState(false);
+  const [endingReady, setEndingReady] = useState(false);
+  const [relicStatus, setRelicStatus] = useState<"idle" | "generating" | "ready" | "error">("idle");
+  const [relicImage, setRelicImage] = useState("");
+  const [relicError, setRelicError] = useState("");
+  const [claimAttempt, setClaimAttempt] = useState(0);
+  const claimedHashRef = useRef("");
 
   const { address, isConnected, chainId } = useAccount();
   const { connectors, connect, isPending: isConnecting, error: connectError } = useConnect();
@@ -160,6 +166,12 @@ function Experience() {
     setJudged(story.performance.cues.map(() => false));
     judgedRef.current = new Set();
     setPuppet({ x: 0, y: 0, action: "walk", nonce: 0 });
+    setEndingReady(false);
+    setRelicStatus("idle");
+    setRelicImage("");
+    setRelicError("");
+    setClaimAttempt(0);
+    claimedHashRef.current = "";
     setPlaying(true);
     setCycle((value) => value + 1);
   }, [story]);
@@ -278,7 +290,14 @@ function Experience() {
     setDialogueIndex(0);
     setDialogueChars(0);
     setPhase("outro");
+    setEndingReady(false);
   }, [story]);
+
+  useEffect(() => {
+    if (phase !== "outro") return;
+    const timer = window.setTimeout(() => setEndingReady(true), 1800);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   const handleProgress = useCallback((value: number) => {
     if (!story) return;
@@ -360,8 +379,45 @@ function Experience() {
   const currentSpeakerKey = phase === "performance" ? performanceLine?.speaker : dialogueBeat?.speaker;
   const currentSpeaker = currentSpeakerKey ? story?.cast[currentSpeakerKey] : undefined;
 
+  useEffect(() => {
+    if (!receipt.isSuccess || !hash || !address || !story || claimedHashRef.current === hash) return;
+    claimedHashRef.current = hash;
+    const controller = new AbortController();
+    setRelicStatus("generating");
+    setRelicError("");
+    setPanelOpen(true);
+
+    fetch("/api/relic/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        txHash: hash,
+        address,
+        grade,
+        score,
+        storyId: story.id,
+        storyTitle: story.title,
+      }),
+    })
+      .then(async (response) => {
+        const result = await response.json() as { error?: string; imageUrl?: string };
+        if (!response.ok || !result.imageUrl) throw new Error(result.error || "虚拟形象生成失败");
+        setRelicImage(result.imageUrl);
+        setRelicStatus("ready");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        claimedHashRef.current = "";
+        setRelicError(error instanceof Error ? error.message : "虚拟形象生成失败");
+        setRelicStatus("error");
+      });
+
+    return () => controller.abort();
+  }, [address, claimAttempt, grade, hash, receipt.isSuccess, score, story]);
+
   const walletReady = Boolean(walletConnectProjectId && connectors.length);
-  const success = receipt.isSuccess;
+  const success = relicStatus === "ready";
   const connectWallet = () => connectors[0] && connect({ connector: connectors[0], chainId: injectiveTestnet.id });
   const mint = async () => {
     if (!contractAddress) return;
@@ -369,14 +425,20 @@ function Experience() {
     writeContract({ address: contractAddress, abi: shadowRelicAbi, functionName: "mint", chainId: injectiveTestnet.id });
   };
   const primaryAction = phase !== "outro" ? { label: "待演", action: undefined }
+    : !endingReady ? { label: "谢幕中", action: undefined }
     : !walletReady ? { label: "待配置", action: undefined }
       : !isConnected ? { label: isConnecting ? "扫码中" : "连接", action: connectWallet }
         : !contractAddress ? { label: "待部署", action: undefined }
-          : { label: isWriting || receipt.isLoading ? "铸造中" : success ? "已铸" : "铸", action: success ? undefined : mint };
-  const walletStatus = success ? `藏品已铸成 · ${short(hash)}`
-    : writeError ? writeError instanceof BaseError ? writeError.shortMessage : writeError.message
-      : connectError ? connectError.message
-        : isConnected ? `${short(address)} · Injective 1439` : "手机钱包扫码连接";
+          : relicStatus === "generating" ? { label: "塑形中", action: undefined }
+            : relicStatus === "error" ? { label: "重试", action: () => setClaimAttempt((value) => value + 1) }
+              : { label: isWriting || receipt.isLoading ? "铸造中" : success ? "已铸" : "铸", action: success ? undefined : mint };
+  const walletStatus = success ? `专属藏品已生成 · ${short(hash)}`
+    : relicStatus === "generating" ? "GPT-Image-2 正在塑造你的皮影化身…"
+      : relicError ? relicError
+        : writeError ? writeError instanceof BaseError ? writeError.shortMessage : writeError.message
+          : connectError ? connectError.message
+            : receipt.isSuccess ? `交易已确认 · ${short(hash)}`
+              : isConnected ? `${short(address)} · Injective 1439` : "手机钱包扫码连接";
 
   if (phase === "loading") {
     return (
@@ -402,6 +464,16 @@ function Experience() {
           onComplete={finishPerformance}
         />
       </section>
+
+      {phase === "outro" ? (
+        <div
+          className="ending-transition"
+          enable-xr
+          style={{ ...xrBase, "--xr-back": "205", "--xr-depth": "30", "--xr-z-index": "70" } as React.CSSProperties}
+        >
+          <i /><span>一折既终</span><b>{gradeLabel}</b>
+        </div>
+      ) : null}
 
       {(phase === "intro" || phase === "outro") && dialogueBeat ? (
         <>
@@ -495,6 +567,14 @@ function Experience() {
         <button className="panel-close" onClick={() => setPanelOpen(false)}>×</button>
         <p className="panel-kicker">CONTENT-DRIVEN STORY</p><h2>{story!.title}</h2>
         <p>剧情、台词、动作判定与结局分支均来自外部 JSON。当前客人已演出 {loadHistory(story!.customerId).playCount} 次。</p>
+        {relicImage ? (
+          <div
+            className="relic-preview"
+            role="img"
+            aria-label="你的专属皮影虚拟形象"
+            style={{ backgroundImage: `url("${relicImage}")` }}
+          />
+        ) : null}
         <div className={`panel-status ${success ? "success" : ""}`}>{walletStatus}</div>
         <button className="replay-link" onClick={startPerformance}>重演此折</button>
       </aside>

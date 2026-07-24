@@ -85,6 +85,43 @@ button { color: inherit; font: inherit; }
   animation: judgment-rise .52s ease-out both;
 }
 
+.ending-transition {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(67,12,11,.98), transparent 42%, transparent 58%, rgba(67,12,11,.98)),
+    radial-gradient(circle, rgba(201,133,54,.17), rgba(3,8,9,.94) 62%);
+  animation: ending-reveal 1.8s ease-in-out forwards;
+}
+.ending-transition i {
+  position: absolute;
+  width: 1px; height: 55vh;
+  background: linear-gradient(transparent, #d7a558, transparent);
+  box-shadow: 0 0 45px #b24b25;
+}
+.ending-transition span {
+  color: #d9ba7d;
+  font-size: clamp(1.5rem, 3vw, 3rem);
+  letter-spacing: .45em;
+}
+.ending-transition b {
+  position: absolute;
+  margin-top: 120px;
+  color: #f0c777;
+  font-size: 4.5rem;
+  font-weight: 400;
+  text-shadow: 0 0 32px #b74928;
+}
+@keyframes ending-reveal {
+  0% { opacity: 0; clip-path: inset(0 50%); }
+  22%, 68% { opacity: 1; clip-path: inset(0 0); }
+  100% { opacity: 0; clip-path: inset(0 0); visibility: hidden; }
+}
+
 .gal-dialogue {
   position: absolute;
   z-index: 12;
@@ -592,6 +629,15 @@ button { color: inherit; font: inherit; }
   cursor: pointer;
   font-size: 10px;
   letter-spacing: .09em;
+}
+.relic-preview {
+  width: 100%;
+  aspect-ratio: 1;
+  margin: 18px 0;
+  border: 1px solid rgba(224,181,101,.36);
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 35px rgba(0,0,0,.28), 0 14px 38px rgba(0,0,0,.34);
 }
 
 .corner-note {
