@@ -1,8 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, Sparkles } from "@react-three/drei";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ContactShadows, Sparkles, useTexture } from "@react-three/drei";
+import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -11,6 +11,7 @@ type ShadowStageProps = {
   cycle: number;
   onComplete: () => void;
   onProgress?: (progress: number, cue: string) => void;
+  onStrike?: () => void;
 };
 
 type LoadedPuppet = {
@@ -187,7 +188,7 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
     const puppet = loaded.current;
     if (puppet) {
       puppet.mixer.stopAllAction();
-      puppet.root.position.set(-3.8, 0.2, 0.25);
+      puppet.root.position.set(0, 0.2, 0);
     }
   }, [cycle]);
 
@@ -211,13 +212,6 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
     }
 
     const progress = time / SHOW_DURATION;
-    const x = time < 2.8
-      ? THREE.MathUtils.lerp(-3.8, -0.25, 1 - Math.pow(1 - time / 2.8, 2))
-      : time < 9.3
-        ? THREE.MathUtils.lerp(-0.25, 1.15, (time - 2.8) / 6.5)
-        : THREE.MathUtils.lerp(1.15, 4.4, Math.pow((time - 9.3) / 3.4, 2));
-    puppet.root.position.x = x;
-    puppet.root.position.y = 0.22 + (time > 7.1 && time < 9.3 ? Math.sin(((time - 7.1) / 2.2) * Math.PI) * 0.75 : 0);
     puppet.mixer.update(delta);
     const reportBucket = Math.floor(time * 10);
     if (reportBucket !== lastProgressReport.current) {
@@ -232,155 +226,114 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
   });
 
   return (
-    <group ref={group} position={[-3.8, 0.2, 0.25]} rotation={[0, -0.08, 0]}>
+    <group ref={group} position={[0, 0.2, 0]} rotation={[0, -0.08, 0]}>
       <pointLight position={[0, 1.2, -1]} color="#ff9f43" intensity={15} distance={4.5} />
-    </group>
-  );
-}
-
-function Block({
-  position,
-  scale,
-  color,
-  roughness = 0.9,
-}: {
-  position: [number, number, number];
-  scale: [number, number, number];
-  color: string;
-  roughness?: number;
-}) {
-  return (
-    <mesh castShadow receiveShadow position={position} scale={scale}>
-      <boxGeometry />
-      <meshStandardMaterial color={color} roughness={roughness} />
-    </mesh>
-  );
-}
-
-function MoonGate() {
-  const blocks = useMemo(() => {
-    const result: Array<[number, number, number]> = [];
-    const radius = 1.65;
-    for (let index = 0; index < 24; index += 1) {
-      const angle = (index / 24) * Math.PI * 2;
-      result.push([Math.cos(angle) * radius, Math.sin(angle) * radius + 1.72, 0]);
-    }
-    return result;
-  }, []);
-
-  return (
-    <group position={[0.35, -0.05, 0.65]}>
-      <Block position={[-2.35, 1.8, 0]} scale={[1.25, 2.25, 0.3]} color="#d8d1bc" />
-      <Block position={[2.35, 1.8, 0]} scale={[1.25, 2.25, 0.3]} color="#d8d1bc" />
-      <Block position={[0, 3.78, 0]} scale={[1.25, 0.28, 0.3]} color="#d8d1bc" />
-      {blocks.map(([x, y, z], index) => (
-        <Block key={index} position={[x, y, z - 0.34]} scale={[0.22, 0.22, 0.34]} color="#413d35" />
-      ))}
-      <Block position={[0, 4.18, 0]} scale={[3.7, 0.18, 0.55]} color="#202526" />
-      {[-2.9, -2.3, 2.3, 2.9].map((x) => (
-        <Block key={x} position={[x, 4.42, 0]} scale={[0.28, 0.12, 0.7]} color="#14191a" />
-      ))}
-    </group>
-  );
-}
-
-function LatticeWindow({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <Block position={[0, 0, 0]} scale={[1.35, 1.1, 0.16]} color="#17201f" />
-      <Block position={[0, 0, 0.18]} scale={[1.15, 0.92, 0.08]} color="#aa9f82" />
-      {[-0.78, -0.39, 0, 0.39, 0.78].map((x) => (
-        <Block key={`v${x}`} position={[x, 0, 0.29]} scale={[0.055, 0.86, 0.08]} color="#35271d" />
-      ))}
-      {[-0.58, -0.29, 0, 0.29, 0.58].map((y) => (
-        <Block key={`h${y}`} position={[0, y, 0.3]} scale={[1.05, 0.045, 0.08]} color="#35271d" />
-      ))}
     </group>
   );
 }
 
 function GardenWorld(props: ShadowStageProps) {
   const { camera } = useThree();
+  const backdrop = useTexture("/stage/moongate-backdrop.webp");
+
   useEffect(() => {
-    camera.lookAt(0.2, 1.3, 0);
+    camera.lookAt(0, 1.35, 0);
   }, [camera]);
 
   return (
     <>
-      <color attach="background" args={["#071216"]} />
-      <fog attach="fog" args={["#071216", 10, 24]} />
-      <hemisphereLight args={["#7694a4", "#15211b", 1.4]} />
-      <directionalLight position={[-6, 8, 6]} color="#9ac1d0" intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <spotLight position={[1.2, 3.1, -3]} target-position={[0, 1.4, 0]} color="#ffad55" intensity={85} angle={0.55} penumbra={0.8} castShadow />
+      <color attach="background" args={["#050b0d"]} />
+      <fog attach="fog" args={["#050b0d", 9, 18]} />
+      <ambientLight color="#ba8a53" intensity={0.85} />
+      <spotLight position={[0, 4.8, 4]} color="#ffb45d" intensity={72} angle={0.68} penumbra={0.9} />
 
-      <Block position={[0, -0.5, 0]} scale={[8.5, 0.35, 7]} color="#27322d" />
-      <Block position={[0, -0.12, 1.2]} scale={[5.8, 0.06, 1.7]} color="#172e32" roughness={0.18} />
-      {[-4.4, -3.3, -2.2, -1.1, 0, 1.1, 2.2, 3.3, 4.4].map((x, index) => (
-        <Block key={x} position={[x, 0.02, 4.25 - Math.abs(index - 4) * 0.1]} scale={[0.48, 0.12, 0.48]} color={index % 2 ? "#6c6555" : "#817764"} />
-      ))}
-
-      <MoonGate />
-      <LatticeWindow position={[-5.1, 1.6, -1.25]} />
-      <LatticeWindow position={[5.05, 1.65, -0.8]} />
-
-      {[-5.7, -4.15, 4.25, 5.8].map((x) => (
-        <group key={x} position={[x, 0, 0]}>
-          <Block position={[0, 1.6, 0]} scale={[0.22, 2.1, 0.22]} color="#37251a" />
-          <Block position={[0, 3.75, 0]} scale={[0.42, 0.16, 0.42]} color="#ad7a39" />
-        </group>
-      ))}
-      <Block position={[-4.9, 3.72, 0]} scale={[1.9, 0.2, 1]} color="#1b2020" />
-      <Block position={[5, 3.72, 0]} scale={[1.9, 0.2, 1]} color="#1b2020" />
-
-      <group position={[-3.6, 0, -1.3]}>
-        <Block position={[0, 0.5, 0]} scale={[0.55, 0.7, 0.65]} color="#59625d" />
-        <Block position={[0.4, 1.05, 0.15]} scale={[0.4, 0.7, 0.42]} color="#737b71" />
-        <Block position={[-0.45, 1.15, -0.08]} scale={[0.32, 0.55, 0.38]} color="#46504b" />
-      </group>
-      {[[-5.7, 1.2], [-5.2, 0.4], [5.3, -1.3], [4.8, -1.9]].map(([x, z], index) => (
-        <group key={index} position={[x, 0, z]}>
-          <Block position={[0, 1.05, 0]} scale={[0.08, 1.5, 0.08]} color="#31523d" />
-          <Block position={[0.28, 1.42, 0]} scale={[0.06, 1.15, 0.06]} color="#3b6747" />
-          <Block position={[-0.23, 1.28, 0.08]} scale={[0.06, 1.25, 0.06]} color="#2f5b3d" />
-        </group>
-      ))}
-
-      <Block position={[0, 1.55, -2.35]} scale={[5.7, 2.15, 0.18]} color="#d3ccb6" />
-      <Block position={[0, 3.8, -2.35]} scale={[6.2, 0.18, 0.55]} color="#191e1f" />
-      <pointLight position={[0, 2.2, -1.65]} color="#ff9d43" intensity={24} distance={6} />
+      <mesh position={[0, 1.65, -2.5]} receiveShadow>
+        <planeGeometry args={[10.67, 6]} />
+        <meshBasicMaterial map={backdrop} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[13, 9]} />
+        <meshStandardMaterial color="#101719" roughness={0.82} />
+      </mesh>
+      <mesh position={[0, 1.6, -2.25]}>
+        <planeGeometry args={[8.8, 4.95]} />
+        <meshPhysicalMaterial color="#f4c77d" transparent opacity={0.075} roughness={1} transmission={0.12} />
+      </mesh>
 
       <PiyingPerformer {...props} />
       <ContactShadows position={[0, -0.12, 0.45]} opacity={0.65} scale={10} blur={2.4} far={5} color="#020303" />
-      <Sparkles count={38} scale={[11, 5, 7]} size={1.3} speed={0.12} opacity={0.26} color="#f1d09a" />
-      <OrbitControls
-        makeDefault
-        enablePan={false}
-        minDistance={7.5}
-        maxDistance={14}
-        minPolarAngle={0.82}
-        maxPolarAngle={1.5}
-        minAzimuthAngle={-0.65}
-        maxAzimuthAngle={0.65}
-        target={[0.2, 1.25, 0]}
-      />
+      <Sparkles count={24} scale={[9, 4.5, 5]} size={1.1} speed={0.1} opacity={0.22} color="#f1d09a" />
     </>
   );
 }
 
 export default function ShadowStage(props: ShadowStageProps) {
+  const { onStrike } = props;
+  const [renderer, setRenderer] = useState<THREE.WebGLRenderer | null>(null);
+  const [xrSupported, setXrSupported] = useState(false);
+  const [inXr, setInXr] = useState(false);
+
+  useEffect(() => {
+    const xr = (navigator as Navigator & {
+      xr?: { isSessionSupported: (mode: string) => Promise<boolean> };
+    }).xr;
+    xr?.isSessionSupported("immersive-vr").then(setXrSupported).catch(() => setXrSupported(false));
+  }, []);
+
+  useEffect(() => {
+    if (!renderer || !onStrike) return;
+    const left = renderer.xr.getController(0);
+    const right = renderer.xr.getController(1);
+    const strike = () => onStrike();
+    left.addEventListener("selectstart", strike);
+    right.addEventListener("selectstart", strike);
+    return () => {
+      left.removeEventListener("selectstart", strike);
+      right.removeEventListener("selectstart", strike);
+    };
+  }, [onStrike, renderer]);
+
+  const enterWebXr = async () => {
+    if (!renderer) return;
+    const xr = (navigator as Navigator & {
+      xr?: { requestSession: (mode: string, options?: object) => Promise<unknown> };
+    }).xr;
+    if (!xr) return;
+    const session = await xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
+    });
+    if (session) {
+      await renderer.xr.setSession(
+        session as Parameters<typeof renderer.xr.setSession>[0],
+      );
+    }
+    setInXr(true);
+  };
+
   return (
-    <Canvas
-      shadows="basic"
-      dpr={[1, 1.45]}
-      camera={{ position: [7.6, 3.5, 10.2], fov: 44 }}
-      gl={{
-        antialias: true,
-        alpha: false,
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.05,
-      }}
-    >
-      <GardenWorld {...props} />
-    </Canvas>
+    <div className="stage-canvas">
+      <Canvas
+        shadows="basic"
+        dpr={[1, 1.35]}
+        camera={{ position: [0, 2.15, 10.4], fov: 42 }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.05,
+        }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          setRenderer(gl);
+        }}
+      >
+        <Suspense fallback={null}>
+          <GardenWorld {...props} />
+        </Suspense>
+      </Canvas>
+      {xrSupported && !inXr ? (
+        <button className="webxr-entry" onClick={enterWebXr}>进入 WebXR</button>
+      ) : null}
+    </div>
   );
 }
