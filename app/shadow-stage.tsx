@@ -12,6 +12,7 @@ type ShadowStageProps = {
   onComplete: () => void;
   onProgress?: (progress: number, cue: string) => void;
   onXrCommand?: (command: PuppetCommand) => void;
+  durationMs?: number;
   puppetInput?: {
     x: number;
     y: number;
@@ -109,7 +110,7 @@ function preparePuppetMaterial(material: THREE.Material, texture: THREE.Texture)
   mapped.needsUpdate = true;
 }
 
-function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput }: ShadowStageProps) {
+function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput, durationMs }: ShadowStageProps) {
   const group = useRef<THREE.Group>(null);
   const loaded = useRef<LoadedPuppet | null>(null);
   const elapsed = useRef(0);
@@ -219,7 +220,8 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput }
   useFrame((_, delta) => {
     const puppet = loaded.current;
     if (!puppet || !playing) return;
-    elapsed.current = Math.min(elapsed.current + delta, SHOW_DURATION);
+    const showDuration = (durationMs ?? SHOW_DURATION * 1000) / 1000;
+    elapsed.current = Math.min(elapsed.current + delta, showDuration);
     const time = elapsed.current;
     let nextCue = 0;
     for (let index = 0; index < CUES.length; index += 1) {
@@ -235,7 +237,7 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput }
       cueIndex.current = nextCue;
     }
 
-    const progress = time / SHOW_DURATION;
+    const progress = time / showDuration;
     puppet.mixer.update(delta);
     const reportBucket = Math.floor(time * 10);
     if (reportBucket !== lastProgressReport.current) {
@@ -243,7 +245,7 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput }
       onProgress?.(progress, CUES[nextCue].label);
     }
 
-    if (time >= SHOW_DURATION && completedCycle.current !== cycle) {
+    if (time >= showDuration && completedCycle.current !== cycle) {
       completedCycle.current = cycle;
       onComplete();
     }

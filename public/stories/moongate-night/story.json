@@ -1,0 +1,268 @@
+{
+  "schemaVersion": "1.0",
+  "id": "moongate-night",
+  "title": "月门照影",
+  "customerId": "madam-luo",
+  "cast": {
+    "shopkeeper": {
+      "name": "掌柜",
+      "portrait": "../../../characters/scholar-yun.webp",
+      "side": "left"
+    },
+    "madam_luo": {
+      "name": "罗夫人",
+      "portrait": "../../../characters/madam-luo.webp",
+      "side": "right"
+    },
+    "narrator": {
+      "name": "旁白",
+      "side": "center"
+    }
+  },
+  "intro": {
+    "textPlayback": {
+      "charsPerSecond": 6
+    },
+    "beats": [
+      {
+        "speaker": "madam_luo",
+        "text": "掌柜，今夜还演《月门照影》？",
+        "expression": "calm",
+        "durationMs": 2800
+      },
+      {
+        "speaker": "shopkeeper",
+        "text": "旧戏新演。夫人若肯留步，我便点灯开幕。",
+        "expression": "confident",
+        "durationMs": 3200
+      },
+      {
+        "speaker": "madam_luo",
+        "text": "我不听锣鼓，只看你手里的影子。",
+        "expression": "testing",
+        "durationMs": 3000
+      }
+    ]
+  },
+  "performance": {
+    "durationMs": 18000,
+    "textPlayback": {
+      "charsPerSecond": 7
+    },
+    "lines": [
+      {
+        "atMs": 0,
+        "speaker": "narrator",
+        "text": "月照空庭，武生推门而入。"
+      },
+      {
+        "atMs": 3200,
+        "speaker": "shopkeeper",
+        "text": "一方月门隔尘梦，半盏孤灯照故人。"
+      },
+      {
+        "atMs": 7600,
+        "speaker": "narrator",
+        "text": "忽闻桥外马蹄急，衣袖破风，影过寒潭。"
+      },
+      {
+        "atMs": 12300,
+        "speaker": "shopkeeper",
+        "text": "来时问月，去时不留名。"
+      },
+      {
+        "atMs": 15800,
+        "speaker": "narrator",
+        "text": "灯影渐收，一礼谢幕。"
+      }
+    ],
+    "cues": [
+      {
+        "id": "enter-salute",
+        "atMs": 1800,
+        "windowMs": 700,
+        "action": "salute",
+        "label": "入门见礼",
+        "points": 100,
+        "required": true
+      },
+      {
+        "id": "cross-bridge",
+        "atMs": 4800,
+        "windowMs": 800,
+        "action": "right",
+        "label": "向右过桥",
+        "points": 80,
+        "required": true
+      },
+      {
+        "id": "chase-light",
+        "atMs": 8200,
+        "windowMs": 650,
+        "action": "run",
+        "label": "疾追灯火",
+        "points": 120,
+        "required": true
+      },
+      {
+        "id": "flying-sleeve",
+        "atMs": 11100,
+        "windowMs": 750,
+        "action": "flying",
+        "label": "临水飞袖",
+        "points": 150,
+        "required": true
+      },
+      {
+        "id": "return-left",
+        "atMs": 14300,
+        "windowMs": 800,
+        "action": "left",
+        "label": "回身归园",
+        "points": 80,
+        "required": true
+      },
+      {
+        "id": "curtain-salute",
+        "atMs": 16700,
+        "windowMs": 700,
+        "action": "salute",
+        "label": "谢幕留白",
+        "points": 100,
+        "required": true
+      }
+    ],
+    "scoring": {
+      "perfectRatio": 0.28,
+      "goodRatio": 0.68,
+      "grades": [
+        {
+          "id": "excellent",
+          "minScoreRatio": 0.82
+        },
+        {
+          "id": "good",
+          "minScoreRatio": 0.55
+        },
+        {
+          "id": "bad",
+          "minScoreRatio": 0
+        }
+      ]
+    }
+  },
+  "outroBranches": [
+    {
+      "id": "two-bad",
+      "priority": 100,
+      "when": [
+        {
+          "path": "history.lastGrades",
+          "op": "tailEquals",
+          "value": ["bad", "bad"]
+        }
+      ],
+      "beats": [
+        {
+          "speaker": "madam_luo",
+          "text": "两夜都错在同一袖。你若只想讨彩，便不必再挂这盏灯。",
+          "expression": "disappointed",
+          "durationMs": 4000
+        },
+        {
+          "speaker": "shopkeeper",
+          "text": "夫人说得对。今夜闭店，我从第一式重新练起。",
+          "expression": "resolved",
+          "durationMs": 3800
+        }
+      ],
+      "nextStoryId": "closed-door-practice"
+    },
+    {
+      "id": "bad-then-good",
+      "priority": 90,
+      "when": [
+        {
+          "path": "history.lastGrades",
+          "op": "tailEquals",
+          "value": ["bad", "good"]
+        }
+      ],
+      "beats": [
+        {
+          "speaker": "madam_luo",
+          "text": "昨日手生，今日却稳住了。你这掌柜，肯下功夫。",
+          "expression": "approving",
+          "durationMs": 3800
+        },
+        {
+          "speaker": "madam_luo",
+          "text": "明夜去旧戏楼找我。我给你一册没人敢演的本子。",
+          "expression": "mysterious",
+          "durationMs": 4200
+        }
+      ],
+      "nextStoryId": "lost-opera-house"
+    },
+    {
+      "id": "good-then-bad",
+      "priority": 80,
+      "when": [
+        {
+          "path": "history.lastGrades",
+          "op": "tailEquals",
+          "value": ["good", "bad"]
+        }
+      ],
+      "beats": [
+        {
+          "speaker": "madam_luo",
+          "text": "第一夜有灵气，第二夜却只剩熟练。你在怕什么？",
+          "expression": "questioning",
+          "durationMs": 4000
+        },
+        {
+          "speaker": "shopkeeper",
+          "text": "我怕砸了招牌，反倒忘了影子为何而动。",
+          "expression": "ashamed",
+          "durationMs": 3600
+        }
+      ],
+      "nextStoryId": "find-the-shadow"
+    },
+    {
+      "id": "two-good",
+      "priority": 70,
+      "when": [
+        {
+          "path": "history.lastGrades",
+          "op": "tailEquals",
+          "value": ["good", "good"]
+        }
+      ],
+      "beats": [
+        {
+          "speaker": "madam_luo",
+          "text": "两夜不失一拍。手稳，心也稳，这间影铺可以接真正的客人了。",
+          "expression": "pleased",
+          "durationMs": 4200
+        }
+      ],
+      "nextStoryId": "grand-opening"
+    },
+    {
+      "id": "first-performance",
+      "priority": 0,
+      "default": true,
+      "beats": [
+        {
+          "speaker": "madam_luo",
+          "text": "一夜看不尽本事。明晚同一时辰，我再来。",
+          "expression": "calm",
+          "durationMs": 3600
+        }
+      ],
+      "nextStoryId": "moongate-night"
+    }
+  ]
+}
