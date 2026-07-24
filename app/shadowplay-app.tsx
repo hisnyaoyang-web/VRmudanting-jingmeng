@@ -46,18 +46,13 @@ function toPuppetCommand(action: StoryAction): PuppetCommand {
   return action === "salute" ? "hi" : action;
 }
 
-function actionKey(action: StoryAction) {
-  return {
-    left: "A / ←", right: "D / →", up: "W / ↑", down: "S / ↓",
-    salute: "J", run: "K", flying: "L",
-  }[action];
-}
-
 function Experience() {
   const [story, setStory] = useState<StoryPackage | null>(null);
   const [storyUrl, setStoryUrl] = useState(DEFAULT_STORY_URL);
   const [loadError, setLoadError] = useState("");
-  const [phase, setPhase] = useState<"loading" | "intro" | "performance" | "outro">("loading");
+  const [phase, setPhase] = useState<"loading" | "intro" | "countdown" | "performance" | "outro">("loading");
+  const [countdown, setCountdown] = useState(3);
+  const [activeKey, setActiveKey] = useState("");
   const [dialogueIndex, setDialogueIndex] = useState(0);
   const [dialogueChars, setDialogueChars] = useState(0);
   const [outro, setOutro] = useState<StoryBranch | null>(null);
@@ -66,10 +61,10 @@ function Experience() {
   const [progress, setProgress] = useState(0);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [bestCombo, setBestCombo] = useState(0);
+  const [, setBestCombo] = useState(0);
   const [judgment, setJudgment] = useState("");
   const [grade, setGrade] = useState<StoryGrade>("bad");
-  const [judged, setJudged] = useState<boolean[]>([]);
+  const [, setJudged] = useState<boolean[]>([]);
   const judgedRef = useRef(new Set<number>());
   const scoreRef = useRef(0);
   const heldDirections = useRef(new Set<PuppetCommand>());
@@ -136,7 +131,8 @@ function Experience() {
     if (!story) return;
     setDialogueIndex(0);
     setDialogueChars(0);
-    setPhase("performance");
+    setPhase("countdown");
+    setCountdown(3);
     setProgress(0);
     setScore(0);
     scoreRef.current = 0;
@@ -147,9 +143,22 @@ function Experience() {
     setJudged(story.performance.cues.map(() => false));
     judgedRef.current = new Set();
     setPuppet({ x: 0, y: 0, action: "walk", nonce: 0 });
-    setPlaying(true);
-    setCycle((value) => value + 1);
+    setPlaying(false);
   }, [story]);
+
+  useEffect(() => {
+    if (phase !== "countdown") return;
+    const timer = window.setTimeout(() => {
+      if (countdown > 1) {
+        setCountdown((value) => value - 1);
+      } else {
+        setPhase("performance");
+        setPlaying(true);
+        setCycle((value) => value + 1);
+      }
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [countdown, phase]);
 
   const advanceDialogue = useCallback(() => {
     if (!dialogueComplete) {
@@ -165,11 +174,6 @@ function Experience() {
   }, [dialogueBeats.length, dialogueComplete, dialogueContent.length, dialogueIndex, phase, startPerformance]);
 
   const showTimeMs = progress * (story?.performance.durationMs ?? 1);
-  const cues = story?.performance.cues ?? [];
-  const nextCueIndex = cues.findIndex((_, index) => !judged[index]);
-  const currentCueIndex = nextCueIndex < 0 ? Math.max(0, cues.length - 1) : nextCueIndex;
-  const currentCue = cues[currentCueIndex];
-
   const perform = useCallback((command: PuppetCommand) => {
     if (!story || phase !== "performance" || !playing) return;
     setPuppet((current) => {
@@ -215,6 +219,12 @@ function Experience() {
       return next;
     });
   }, [phase, playing, showTimeMs, story]);
+
+  const tapCommand = useCallback((key: string, command: PuppetCommand) => {
+    setActiveKey(key);
+    perform(command);
+    window.setTimeout(() => setActiveKey((value) => value === key ? "" : value), 420);
+  }, [perform]);
 
   useEffect(() => {
     if (phase !== "performance" || !playing) return;
@@ -285,6 +295,10 @@ function Experience() {
       const command = map[event.code];
       if (command) {
         event.preventDefault();
+        const keyLabel: Partial<Record<PuppetCommand, string>> = {
+          left: "A", right: "D", up: "W", down: "S", hi: "J", run: "K", flying: "L",
+        };
+        setActiveKey(keyLabel[command] ?? "");
         if (command === "left" || command === "right" || command === "up" || command === "down") {
           heldDirections.current.add(command);
         }
@@ -298,7 +312,10 @@ function Experience() {
         KeyW: "up", ArrowUp: "up", KeyS: "down", ArrowDown: "down",
       };
       const command = map[event.code];
-      if (command) heldDirections.current.delete(command);
+      if (command) {
+        heldDirections.current.delete(command);
+        setActiveKey("");
+      }
     };
     const clearDirections = () => heldDirections.current.clear();
     window.addEventListener("keydown", onKeyDown);
@@ -411,24 +428,6 @@ function Experience() {
         </div>
       ) : null}
 
-      <aside className="script-board" enable-xr style={{ ...xrBase, "--xr-back": "85", "--xr-depth": "24" } as React.CSSProperties}>
-        <p>今夜剧本 ·《{story!.title}》</p>
-        <h2>{phase === "outro" ? outro?.id : phase === "intro" ? "客人入座" : currentCue?.label}</h2>
-        <blockquote>
-          {phase === "intro" ? "听客人开口，再点灯开演。"
-            : phase === "outro" ? `本场 ${score} 分 · 最高 ${bestCombo} 连击`
-              : performanceLine?.text ?? "候场。"}
-        </blockquote>
-        <ol>
-          {cues.map((cue, index) => (
-            <li key={cue.id} className={judged[index] ? "done" : index === currentCueIndex ? "current" : ""}>
-              <span>{index + 1}</span><b>{cue.label}</b><kbd>{actionKey(cue.action)}</kbd>
-            </li>
-          ))}
-        </ol>
-        <small>移动：WASD / 方向键　招式：J K L</small>
-      </aside>
-
       {phase === "performance" ? (
         <div className="score-hud" enable-xr style={{ ...xrBase, "--xr-back": "110" } as React.CSSProperties}>
           <span>得分 <b>{score}</b></span><span>连击 <b>{combo}</b></span>
@@ -436,22 +435,25 @@ function Experience() {
       ) : null}
       {judgment ? <div className="judgment-pop" enable-xr>{judgment}</div> : null}
 
-      <aside className="control-guide" enable-xr style={{ ...xrBase, "--xr-back": "72", "--xr-depth": "18" } as React.CSSProperties}>
-        <small>操作辅助</small>
-        <div><kbd>WASD</kbd><span>按住移动</span></div>
-        <div><kbd>方向键</kbd><span>按住移动</span></div>
-        <div><kbd>J</kbd><span>亮相 / 见礼</span></div>
-        <div><kbd>K</kbd><span>疾行</span></div>
-        <div><kbd>L</kbd><span>飞袖</span></div>
-        <em>WebXR：摇杆移动 · 扳机确认</em>
+      <aside className="control-deck" enable-xr style={{ ...xrBase, "--xr-back": "190", "--xr-depth": "32", "--xr-z-index": "60" } as React.CSSProperties}>
+        {phase === "countdown" ? (
+          <div className="stage-countdown" key={countdown}>
+            <small>演出即将开始</small><b>{countdown}</b>
+          </div>
+        ) : null}
+        <section className="movement-keys" aria-label="移动按键">
+          <button className={activeKey === "W" ? "pressed" : ""} onClick={() => tapCommand("W", "up")}><kbd>W</kbd><span>前</span></button>
+          <button className={activeKey === "A" ? "pressed" : ""} onClick={() => tapCommand("A", "left")}><kbd>A</kbd><span>左</span></button>
+          <button className={activeKey === "S" ? "pressed" : ""} onClick={() => tapCommand("S", "down")}><kbd>S</kbd><span>后</span></button>
+          <button className={activeKey === "D" ? "pressed" : ""} onClick={() => tapCommand("D", "right")}><kbd>D</kbd><span>右</span></button>
+        </section>
+        <div className="deck-label"><i />按住<br />移动</div>
+        <section className="action-keys" aria-label="招式按键">
+          <button className={activeKey === "J" ? "pressed" : ""} onClick={() => tapCommand("J", "hi")}><kbd>J</kbd><span>见礼</span></button>
+          <button className={activeKey === "K" ? "pressed" : ""} onClick={() => tapCommand("K", "run")}><kbd>K</kbd><span>疾行</span></button>
+          <button className={activeKey === "L" ? "pressed" : ""} onClick={() => tapCommand("L", "flying")}><kbd>L</kbd><span>飞袖</span></button>
+        </section>
       </aside>
-
-      <header className="garden-header">
-        <div className="garden-title"><span className="title-mark">园</span><div><h1>园中影铺</h1><p>STORY API · {story!.schemaVersion}</p></div></div>
-        <div className="act-label"><span>壹</span><p>{phase === "intro" ? "上场" : phase === "performance" ? "演出" : "谢幕"}<br /><b>{story!.title}</b></p></div>
-      </header>
-
-      <div className="network-status"><i /> STORY · {story!.id}</div>
       <nav className="ritual-actions">
         <button className="round-action" onClick={() => setPanelOpen((value) => !value)}><span>◉</span><small>信息</small></button>
         <button className={`round-action ${isConnected ? "connected" : ""}`} onClick={isConnected ? () => disconnect() : connectWallet} disabled={!walletReady}><span>▣</span><small>{isConnected ? "已连" : "连接"}</small></button>
@@ -465,7 +467,6 @@ function Experience() {
         <div className={`panel-status ${success ? "success" : ""}`}>{walletStatus}</div>
         <button className="replay-link" onClick={startPerformance}>重演此折</button>
       </aside>
-      <div className="corner-note">PICO WEBSPATIAL<br />STORY RUNTIME · 1.0</div>
     </main>
   );
 }

@@ -6,12 +6,12 @@
   "cast": {
     "shopkeeper": {
       "name": "掌柜",
-      "portrait": "../../../characters/scholar-yun.webp",
+      "portrait": "../../../characters/shopkeeper-shadow.png",
       "side": "left"
     },
     "madam_luo": {
       "name": "罗夫人",
-      "portrait": "../../../characters/madam-luo.webp",
+      "portrait": "../../../characters/madam-luo-shadow.png",
       "side": "right"
     },
     "narrator": {

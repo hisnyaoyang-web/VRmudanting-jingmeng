@@ -88,11 +88,11 @@ button { color: inherit; font: inherit; }
 .gal-dialogue {
   position: absolute;
   z-index: 12;
-  left: 50%;
-  bottom: 12%;
-  width: min(700px, calc(100vw - 64px));
-  min-height: 190px;
-  transform: translateX(-50%);
+  left: clamp(34px, 6vw, 96px);
+  bottom: 25%;
+  width: min(500px, 42vw);
+  min-height: 180px;
+  transform: none;
   display: flex;
   flex-direction: column;
   padding: 30px 38px 24px;
@@ -105,14 +105,14 @@ button { color: inherit; font: inherit; }
 .dialogue-portrait {
   position: absolute;
   z-index: 13;
-  bottom: 9%;
-  width: min(300px, 28vw);
-  height: min(500px, 65vh);
+  bottom: 15%;
+  width: min(390px, 32vw);
+  height: min(610px, 72vh);
   pointer-events: none;
   filter: drop-shadow(0 24px 34px rgba(0,0,0,.58));
 }
-.dialogue-portrait.side-left { left: clamp(3%, 7vw, 120px); }
-.dialogue-portrait.side-right { right: clamp(3%, 7vw, 120px); }
+.dialogue-portrait.side-left { right: clamp(2%, 4vw, 72px); left: auto; }
+.dialogue-portrait.side-right { right: clamp(2%, 4vw, 72px); }
 .dialogue-portrait img {
   width: 100%;
   height: 100%;
@@ -319,11 +319,117 @@ button { color: inherit; font: inherit; }
   white-space: nowrap;
 }
 
+.control-deck {
+  position: absolute;
+  z-index: 15;
+  left: 50%;
+  bottom: 24px;
+  width: min(860px, calc(100vw - 220px));
+  min-height: 142px;
+  transform: translateX(-50%) perspective(900px) rotateX(4deg);
+  display: grid;
+  grid-template-columns: 260px 78px 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 17px 30px 19px;
+  border: 1px solid rgba(239,198,122,.55);
+  border-radius: 70px;
+  background: linear-gradient(180deg, rgba(24,25,23,.94), rgba(6,10,11,.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,151,.15),
+    inset 0 -9px 20px rgba(0,0,0,.5),
+    0 8px 0 #17120d,
+    0 18px 50px rgba(0,0,0,.65);
+  backdrop-filter: blur(18px);
+}
+.movement-keys {
+  display: grid;
+  grid-template: repeat(2, 51px) / repeat(3, 58px);
+  justify-content: center;
+  gap: 7px;
+}
+.movement-keys button:nth-child(1) { grid-area: 1 / 2; }
+.movement-keys button:nth-child(2) { grid-area: 2 / 1; }
+.movement-keys button:nth-child(3) { grid-area: 2 / 2; }
+.movement-keys button:nth-child(4) { grid-area: 2 / 3; }
+.control-deck button {
+  position: relative;
+  border: 1px solid rgba(238,195,116,.62);
+  color: #f1d39a;
+  background: linear-gradient(145deg, #292821, #0d1112);
+  box-shadow: inset 0 1px 0 rgba(255,229,173,.18), 0 5px 0 #100d09, 0 9px 16px rgba(0,0,0,.46);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease, background .08s ease;
+}
+.movement-keys button { border-radius: 10px; }
+.control-deck button kbd { display: block; font: 23px/1 ui-monospace, monospace; }
+.control-deck button span { display: block; margin-top: 3px; color: rgba(229,207,166,.55); font-size: 8px; }
+.control-deck button.pressed {
+  z-index: 2;
+  transform: translateY(5px);
+  color: #ffe4a7;
+  background: linear-gradient(145deg, #8c5b28, #332113);
+  box-shadow: inset 0 0 18px rgba(255,190,90,.5), 0 1px 0 #100d09, 0 0 25px rgba(238,157,57,.48);
+}
+.control-deck button.pressed::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 2px solid rgba(255,190,91,.75);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: key-wave .75s ease-out infinite;
+}
+@keyframes key-wave {
+  from { opacity: .9; transform: scale(.72); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+.deck-label {
+  padding-left: 22px;
+  border-left: 1px solid rgba(225,184,105,.35);
+  color: rgba(231,211,173,.62);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.deck-label i {
+  display: block;
+  width: 7px; height: 7px;
+  margin-bottom: 7px;
+  transform: rotate(45deg);
+  border: 1px solid #d5ac65;
+}
+.action-keys { display: flex; align-items: center; justify-content: space-around; gap: 18px; }
+.action-keys button {
+  width: 78px; height: 78px;
+  border-radius: 50%;
+}
+.stage-countdown {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 20px);
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 150px; height: 150px;
+  border: 1px solid rgba(235,190,105,.65);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129,70,29,.72), rgba(5,10,11,.9) 68%);
+  box-shadow: 0 0 0 14px rgba(222,166,78,.07), 0 0 55px rgba(207,113,38,.34);
+  animation: countdown-pulse .72s ease-out both;
+}
+.stage-countdown small { position: absolute; top: 28px; color: #ad8955; font-size: 9px; letter-spacing: .12em; }
+.stage-countdown b { color: #ffe0a1; font: 62px/1 ui-monospace, monospace; text-shadow: 0 0 24px #d56d2c; }
+@keyframes countdown-pulse {
+  from { opacity: 0; transform: translateX(-50%) scale(.55); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
 .ritual-actions {
   position: absolute;
   z-index: 7;
   right: clamp(24px, 4vw, 62px);
-  bottom: clamp(22px, 3.5vw, 48px);
+  top: 22px;
+  bottom: auto;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -443,7 +549,7 @@ button { color: inherit; font: inherit; }
   .garden-shell { min-height: 540px; }
   .garden-header { left: 20px; top: 20px; }
   .act-label, .network-status, .corner-note { display: none; }
-  .ritual-actions { right: 18px; bottom: 19px; gap: 8px; }
+  .ritual-actions { right: 18px; top: 14px; bottom: auto; gap: 8px; }
   .round-action { width: 48px; height: 48px; }
   .mint-seal { width: 62px; height: 62px; }
   .mint-seal b { font-size: 16px; }
@@ -476,6 +582,24 @@ button { color: inherit; font: inherit; }
   .dialogue-portrait.side-right { right: 8px; }
   .gal-dialogue p { font-size: 12px; line-height: 1.75; }
   .performance-subtitle { bottom: 132px; width: calc(100vw - 32px); }
+  .control-deck {
+    width: calc(100vw - 24px);
+    min-height: 112px;
+    bottom: 12px;
+    grid-template-columns: 180px 42px 1fr;
+    gap: 9px;
+    padding: 10px 13px 13px;
+    border-radius: 40px;
+  }
+  .movement-keys { grid-template: repeat(2, 38px) / repeat(3, 43px); gap: 5px; }
+  .control-deck button kbd { font-size: 17px; }
+  .control-deck button span { display: none; }
+  .action-keys { gap: 7px; }
+  .action-keys button { width: 52px; height: 52px; }
+  .deck-label { padding-left: 10px; font-size: 8px; }
+  .stage-countdown { width: 106px; height: 106px; bottom: calc(100% + 10px); }
+  .stage-countdown small { top: 17px; font-size: 7px; }
+  .stage-countdown b { font-size: 43px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

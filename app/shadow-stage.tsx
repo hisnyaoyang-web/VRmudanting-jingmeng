@@ -186,6 +186,7 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput, 
 
       group.current.add(model);
       loaded.current = { root: group.current, model, mixer, actions };
+      actions.walk.setLoop(THREE.LoopRepeat, Infinity).play();
     }).catch((error) => console.error("皮影加载失败", error));
 
     return () => {
@@ -239,15 +240,7 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress, puppetInput, 
     for (let index = 0; index < CUES.length; index += 1) {
       if (time >= CUES[index].at) nextCue = index;
     }
-    if (nextCue !== cueIndex.current) {
-      const cue = CUES[nextCue];
-      Object.values(puppet.actions).forEach((action) => action.fadeOut(0.18));
-      const action = puppet.actions[cue.name];
-      action.reset();
-      action.setLoop(cue.name === "walk" || cue.name === "run" ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
-      action.fadeIn(0.18).play();
-      cueIndex.current = nextCue;
-    }
+    cueIndex.current = nextCue;
 
     const progress = time / showDuration;
     puppet.mixer.update(delta);
