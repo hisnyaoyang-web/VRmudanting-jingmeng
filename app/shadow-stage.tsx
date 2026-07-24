@@ -232,6 +232,108 @@ function PiyingPerformer({ playing, cycle, onComplete, onProgress }: ShadowStage
   );
 }
 
+function StageBox({
+  position,
+  scale,
+  color,
+  rotation = [0, 0, 0],
+  metalness = 0,
+}: {
+  position: [number, number, number];
+  scale: [number, number, number];
+  color: string;
+  rotation?: [number, number, number];
+  metalness?: number;
+}) {
+  return (
+    <mesh position={position} scale={scale} rotation={rotation} castShadow receiveShadow>
+      <boxGeometry />
+      <meshStandardMaterial color={color} roughness={0.72} metalness={metalness} />
+    </mesh>
+  );
+}
+
+function Lantern({ x }: { x: number }) {
+  return (
+    <group position={[x, 3.15, 0.7]}>
+      <StageBox position={[0, 0.78, 0]} scale={[0.025, 0.78, 0.025]} color="#7c5b31" />
+      <mesh castShadow>
+        <cylinderGeometry args={[0.23, 0.31, 0.62, 10]} />
+        <meshStandardMaterial
+          color="#9f321f"
+          emissive="#ff6b2d"
+          emissiveIntensity={1.15}
+          roughness={0.7}
+        />
+      </mesh>
+      <pointLight color="#ff7b32" intensity={7} distance={2.6} decay={2} />
+      <StageBox position={[0, -0.45, 0]} scale={[0.035, 0.26, 0.035]} color="#b58a4d" />
+    </group>
+  );
+}
+
+function TheatreStage({ backdrop }: { backdrop: THREE.Texture }) {
+  return (
+    <group>
+      <StageBox position={[0, -0.42, 0]} scale={[11.7, 0.68, 5.1]} color="#171b1b" />
+      <StageBox position={[0, -0.05, 2.25]} scale={[11.9, 0.32, 0.56]} color="#6d291f" />
+      <StageBox position={[0, -0.12, 2.55]} scale={[10.9, 0.18, 0.68]} color="#b08a4e" metalness={0.12} />
+      {[-4.8, -1.6, 1.6, 4.8].map((x) => (
+        <StageBox key={x} position={[x, -0.28, 2.58]} scale={[0.065, 0.22, 0.36]} color="#2b1512" />
+      ))}
+
+      {[-5.15, 5.15].map((x) => (
+        <group key={x}>
+          <StageBox position={[x, 2.15, -0.12]} scale={[0.5, 5.1, 0.6]} color="#3c211b" />
+          <StageBox position={[x, 2.15, -0.12]} scale={[0.26, 4.84, 0.78]} color="#842e20" />
+          <mesh position={[x, 4.78, -0.12]} castShadow>
+            <cylinderGeometry args={[0.36, 0.36, 0.24, 8]} />
+            <meshStandardMaterial color="#a98248" roughness={0.55} metalness={0.18} />
+          </mesh>
+        </group>
+      ))}
+
+      <StageBox position={[0, 4.58, -0.18]} scale={[10.9, 0.56, 0.84]} color="#3a201a" />
+      <StageBox position={[0, 4.47, 0.25]} scale={[9.5, 0.22, 0.22]} color="#b28a4c" metalness={0.12} />
+      <StageBox
+        position={[0, 5.02, -0.26]}
+        scale={[12.1, 0.34, 1.64]}
+        rotation={[0.06, 0, 0]}
+        color="#101719"
+      />
+      <StageBox position={[0, 5.18, -0.62]} scale={[10.9, 0.22, 1.24]} color="#24302e" />
+      {[-5.75, -3.45, -1.15, 1.15, 3.45, 5.75].map((x) => (
+        <StageBox
+          key={x}
+          position={[x, 4.93, 0.45]}
+          scale={[0.5, 0.11, 1.05]}
+          rotation={[0, 0, x < 0 ? -0.08 : 0.08]}
+          color="#111819"
+        />
+      ))}
+
+      <mesh position={[0, 2.08, -2.42]} receiveShadow>
+        <planeGeometry args={[9.6, 5.4]} />
+        <meshBasicMaterial map={backdrop} toneMapped={false} />
+      </mesh>
+      <StageBox position={[-4.95, 2.15, -2.25]} scale={[0.32, 4.9, 0.36]} color="#b18a50" />
+      <StageBox position={[4.95, 2.15, -2.25]} scale={[0.32, 4.9, 0.36]} color="#b18a50" />
+
+      <group position={[-5.2, 1.9, 0.85]} rotation={[0, -0.2, 0]}>
+        <StageBox position={[0, 0, 0]} scale={[0.84, 4.2, 2.4]} color="#401d19" />
+        <StageBox position={[0.43, 0, 0]} scale={[0.07, 4, 2.24]} color="#a23b29" />
+      </group>
+      <group position={[5.2, 1.9, 0.85]} rotation={[0, 0.2, 0]}>
+        <StageBox position={[0, 0, 0]} scale={[0.84, 4.2, 2.4]} color="#401d19" />
+        <StageBox position={[-0.43, 0, 0]} scale={[0.07, 4, 2.24]} color="#a23b29" />
+      </group>
+
+      <Lantern x={-4.1} />
+      <Lantern x={4.1} />
+    </group>
+  );
+}
+
 function GardenWorld(props: ShadowStageProps) {
   const { camera } = useThree();
   const backdrop = useTexture("/stage/moongate-backdrop.webp");
@@ -244,17 +346,22 @@ function GardenWorld(props: ShadowStageProps) {
     <>
       <color attach="background" args={["#050b0d"]} />
       <fog attach="fog" args={["#050b0d", 9, 18]} />
-      <ambientLight color="#ba8a53" intensity={0.85} />
-      <spotLight position={[0, 4.8, 4]} color="#ffb45d" intensity={72} angle={0.68} penumbra={0.9} />
+      <ambientLight color="#9e8060" intensity={0.62} />
+      <hemisphereLight args={["#6f8790", "#17100c", 0.65]} />
+      <directionalLight
+        position={[-4, 7, 5]}
+        color="#ffd08a"
+        intensity={2.2}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-7}
+        shadow-camera-right={7}
+        shadow-camera-top={6}
+        shadow-camera-bottom={-2}
+      />
+      <spotLight position={[0, 5.4, 4]} color="#ffb45d" intensity={62} angle={0.58} penumbra={0.88} castShadow />
 
-      <mesh position={[0, 1.65, -2.5]} receiveShadow>
-        <planeGeometry args={[10.67, 6]} />
-        <meshBasicMaterial map={backdrop} toneMapped={false} />
-      </mesh>
-      <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[13, 9]} />
-        <meshStandardMaterial color="#101719" roughness={0.82} />
-      </mesh>
+      <TheatreStage backdrop={backdrop} />
       <mesh position={[0, 1.6, -2.25]}>
         <planeGeometry args={[8.8, 4.95]} />
         <meshPhysicalMaterial color="#f4c77d" transparent opacity={0.075} roughness={1} transmission={0.12} />
@@ -313,17 +420,20 @@ export default function ShadowStage(props: ShadowStageProps) {
   return (
     <div className="stage-canvas">
       <Canvas
-        shadows="basic"
+        shadows
         dpr={[1, 1.35]}
-        camera={{ position: [0, 2.15, 10.4], fov: 42 }}
+        camera={{ position: [0, 2.25, 11.8], fov: 43, near: 0.1, far: 40 }}
         gl={{
           antialias: true,
           alpha: false,
+          powerPreference: "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 1.08,
         }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
           setRenderer(gl);
         }}
       >
