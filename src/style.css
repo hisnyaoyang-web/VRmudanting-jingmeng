@@ -1,0 +1,436 @@
+/* ============ 皮影舞台 · 单一连续长卷（四层轨道叠加）============ */
+:root {
+  --gold: #d9a03f;
+  --scene-w: 1.4; /* 单个场景世界宽度（视口倍数），与 src/scene.ts 的 SCENE_W 保持一致 */
+  --gold-bright: #f0c060;
+  --ember: #d98a3c;
+  --lacquer: #8c1f1a;
+  --lacquer-deep: #5c120f;
+  --ink: #160a10;
+  --paper: #f2d8a8;
+  --serif: "Kaiti SC", "KaiTi", "STKaiti", "TW-Kai", "Noto Serif SC", serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0608;
+  font-family: var(--serif);
+  user-select: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ---------- 舞台容器 ---------- */
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0a0608;
+}
+
+/* ---------- 连续长卷：两个场景各占一半，宽度为视口两倍 ---------- */
+.panorama {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--scene-w) * 300vw);
+  height: 100%;
+  will-change: transform;
+}
+
+/* 每个深度轨道都是铺满长卷的一整层，内部左右两半分别承载两个场景的图片。
+   各层仅做轻微鼠标视差（前后景错位），相机平移时整体随长卷移动，保持图片已对齐的位置。 */
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  will-change: transform;
+}
+
+/* 四层叠加顺序：后景 < 中后景 < 角色 < 前景 < 接缝 */
+.layer-back { z-index: 1; }
+.layer-mid { z-index: 2; }
+#puppet-layer { z-index: 5; }
+.layer-front { z-index: 6; }
+.seam { z-index: 7; }
+
+.half {
+  flex: 0 0 33.3333%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+}
+
+/* 闺房（场景1）三层：真实透明通道，直接 CSS 叠加 */
+.s1-back { background-image: url("/scenes/s1-back.png"); }
+.s1-mid { background-image: url("/scenes/s1-mid.png"); }
+.s1-front { background-image: url("/scenes/s1-front.png"); }
+
+/* 花园（场景2）后景：无绿幕，直接显示 */
+.s2-back { background-image: url("/scenes/s2-back.png"); }
+/* 花园中后景 / 前景为绿幕抠图层，由运行时 chromaKeyLayer() 去绿后注入 background-image */
+
+/* 两幕底图接缝的折纸阴影（随长卷平移） */
+.seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 33.3333%;
+  width: 80px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.22) 45%,
+    rgba(0, 0, 0, 0.30) 50%,
+    rgba(0, 0, 0, 0.22) 55%,
+    rgba(0, 0, 0, 0) 100%);
+  mix-blend-mode: multiply;
+}
+
+/* ---------- 皮影人偶层（透明 Three.js 画布，位于长卷角色轨道） ---------- */
+#puppet-layer {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  height: 64%;
+  aspect-ratio: 2 / 3;
+  pointer-events: none;
+  transform: translateX(-50%);
+  will-change: left;
+  filter: drop-shadow(0 16px 20px rgba(5, 2, 4, 0.5));
+}
+#puppet-layer canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ---------- 剪纸屏柱（两幕接缝遮挡物，角色可穿行其下） ---------- */
+.scene-screen {
+  position: absolute;
+  left: 33.3333%;
+  top: 0;
+  bottom: 0;
+  width: 18vh;
+  transform: translateX(-50%);
+  z-index: 8;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.6));
+  transform-origin: bottom center;
+  animation: screen-sway 8s ease-in-out infinite;
+}
+.screen-svg { width: 100%; height: 100%; display: block; }
+@keyframes screen-sway {
+  0%, 100% { transform: translateX(-50%) rotate(-0.5deg); }
+  50%      { transform: translateX(-50%) rotate(0.5deg); }
+}
+
+/* ---------- 氛围叠加 ---------- */
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(ellipse 120% 90% at 50% 42%, transparent 50%, rgba(10, 3, 6, 0.6) 100%);
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- 舞台幕框 ---------- */
+.stage-frame { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+.valance {
+  position: absolute;
+  left: 0; right: 0;
+  height: 5.5vh;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 130%),
+    repeating-linear-gradient(90deg, var(--lacquer-deep) 0 46px, #6e1712 46px 92px);
+  border-bottom: 2px solid rgba(217, 160, 63, 0.65);
+}
+.valance-top { top: 0; box-shadow: 0 10px 34px rgba(0, 0, 0, 0.7); }
+.valance-bottom { bottom: 0; top: auto; transform: scaleY(-1); height: 3.2vh; }
+.curtain {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 4.5vw;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.6), transparent 160%),
+    repeating-linear-gradient(90deg, #6e1712 0 14px, var(--lacquer) 14px 22px, var(--lacquer-deep) 22px 40px);
+}
+.curtain-left { left: 0; border-right: 2px solid rgba(217, 160, 63, 0.55); box-shadow: 12px 0 34px rgba(0, 0, 0, 0.65); }
+.curtain-right { right: 0; transform: scaleX(-1); border-right: 2px solid rgba(217, 160, 63, 0.55); box-shadow: 12px 0 34px rgba(0, 0, 0, 0.65); }
+
+/* ---------- 暗场 ---------- */
+#stage-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: #050308;
+  pointer-events: none;
+  transition: opacity 2.2s ease;
+}
+#stage-dim.lit { opacity: 0; }
+
+/* ---------- 操作提示 ---------- */
+.hint {
+  position: fixed;
+  bottom: 6vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  font-size: clamp(14px, 1.8vw, 18px);
+  letter-spacing: 0.2em;
+  color: var(--paper);
+  text-shadow: 0 0 12px rgba(217, 138, 60, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.hint:not(.hidden) { opacity: 0.85; }
+.hint-key {
+  display: inline-block;
+  padding: 2px 9px;
+  margin: 0 2px;
+  border: 1px solid rgba(217, 160, 63, 0.6);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: var(--gold-bright);
+}
+
+/* 行山戏台区域：月门背景图铺底，人物在其前方走过即进入音游 */
+.theatre-half {
+  background-image: url("/stage/moongate-backdrop.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+  background-color: #06090c;
+}
+/* 前景层不贴背景图：它 z-index 高于人偶层，贴了会把人物盖住。人偶始终在最前 */
+.layer-front .theatre-half {
+  background-image: none;
+  background-color: transparent;
+}
+
+.scene-screen.screen-2 { left: 66.6667%; }
+
+/* ============================================================
+   原版音游覆盖层（React + R3F）样式 —— 来自参考项目，原样移植
+   仅在 #rhythm-stage 容器内生效，避免与长卷场景样式冲突
+   ============================================================ */
+#rhythm-stage { font-family: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif; }
+#rhythm-stage * { box-sizing: border-box; }
+#rhythm-stage button { color: inherit; font: inherit; }
+
+#rhythm-stage .garden-shell {
+  position: relative; width: 100vw; height: 100vh; min-height: 620px;
+  overflow: hidden; background: #071216; isolation: isolate;
+}
+#rhythm-stage .garden-shell::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(2,7,9,.48), transparent 23%, transparent 72%, rgba(2,7,9,.56)),
+    radial-gradient(circle at 50% 46%, transparent 36%, rgba(2,7,9,.36) 100%);
+}
+#rhythm-stage .world { position: absolute; inset: 0; z-index: 1; }
+#rhythm-stage .world canvas, #rhythm-stage .stage-canvas { display: block; width: 100%; height: 100%; }
+
+#rhythm-stage .loading-garden { display: grid; place-items: center; color: #d3b777; letter-spacing: .35em; }
+
+/* 分数 / 判定 */
+#rhythm-stage .score-hud {
+  position: absolute; z-index: 6; top: 23%; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 28px; color: rgba(235,220,186,.62); font-size: 10px; letter-spacing: .12em;
+}
+#rhythm-stage .score-hud b { color: #f0c774; font: 17px ui-monospace, monospace; }
+#rhythm-stage .judgment-pop {
+  position: absolute; z-index: 7; left: calc(50% + 84px); top: 43%;
+  color: #ffd782; font-size: 2.5rem; text-shadow: 0 0 20px #bf4b27;
+  animation: ry-judgment-rise .52s ease-out both;
+}
+@keyframes ry-judgment-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 谢幕 */
+#rhythm-stage .ending-transition {
+  position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(67,12,11,.98), transparent 42%, transparent 58%, rgba(67,12,11,.98)),
+    radial-gradient(circle, rgba(201,133,54,.17), rgba(3,8,9,.94) 62%);
+  animation: ry-ending-reveal 1.8s ease-in-out forwards;
+}
+#rhythm-stage .ending-transition i {
+  position: absolute; width: 1px; height: 55vh;
+  background: linear-gradient(transparent, #d7a558, transparent); box-shadow: 0 0 45px #b24b25;
+}
+#rhythm-stage .ending-transition span { color: #d9ba7d; font-size: clamp(1.5rem, 3vw, 3rem); letter-spacing: .45em; }
+#rhythm-stage .ending-transition b {
+  position: absolute; margin-top: 120px; color: #f0c777; font-size: 4.5rem; font-weight: 400;
+  text-shadow: 0 0 32px #b74928;
+}
+@keyframes ry-ending-reveal {
+  0% { opacity: 0; clip-path: inset(0 50%); }
+  22%, 68% { opacity: 1; clip-path: inset(0 0); }
+  100% { opacity: 0; clip-path: inset(0 0); visibility: hidden; }
+}
+
+/* 对话框 / 立绘 */
+#rhythm-stage .gal-dialogue {
+  position: absolute; z-index: 12; left: clamp(34px, 6vw, 96px); bottom: 25%;
+  width: min(500px, 42vw); min-height: 180px; display: flex; flex-direction: column;
+  padding: 30px 38px 24px; border: 1px solid rgba(225,184,105,.52);
+  background: linear-gradient(135deg, rgba(5,14,17,.96), rgba(33,27,21,.92));
+  box-shadow: 0 30px 90px rgba(0,0,0,.6); cursor: pointer; text-align: left;
+}
+#rhythm-stage .dialogue-portrait {
+  position: absolute; z-index: 13; bottom: 15%; width: min(390px, 32vw); height: min(610px, 72vh);
+  pointer-events: none; filter: drop-shadow(0 24px 34px rgba(0,0,0,.58));
+}
+#rhythm-stage .dialogue-portrait.side-left { right: clamp(2%, 4vw, 72px); left: auto; }
+#rhythm-stage .dialogue-portrait.side-right { right: clamp(2%, 4vw, 72px); }
+#rhythm-stage .dialogue-portrait img {
+  width: 100%; height: 100%; object-fit: contain; object-position: center bottom;
+  mask-image: linear-gradient(to bottom, black 78%, transparent 100%);
+}
+#rhythm-stage .gal-dialogue small { color: #ae8954; font: 9px ui-monospace, monospace; letter-spacing: .15em; }
+#rhythm-stage .gal-dialogue b { margin-top: 10px; color: #f0d49c; font-size: 1.35rem; font-weight: 500; }
+#rhythm-stage .gal-dialogue p { margin: 18px 0 0; color: #d8cfba; font-size: 1rem; line-height: 2; letter-spacing: .04em; }
+#rhythm-stage .gal-dialogue p i {
+  display: inline-block; width: 5px; height: 1em; margin-left: 4px;
+  background: #c99954; vertical-align: middle; animation: ry-caret-blink .7s steps(1) infinite;
+}
+#rhythm-stage .gal-dialogue em { margin-top: auto; color: #746e61; font: normal 8px ui-monospace, monospace; text-align: right; }
+@keyframes ry-caret-blink { 50% { opacity: 0; } }
+
+/* 演出字幕 */
+#rhythm-stage .performance-subtitle {
+  position: absolute; z-index: 8; left: 50%; bottom: 190px; width: min(620px, 60vw);
+  transform: translateX(-50%); padding: 12px 20px 14px; border-left: 2px solid #b88b50;
+  background: rgba(5,13,15,.76); text-align: center; backdrop-filter: blur(10px);
+}
+#rhythm-stage .performance-subtitle small { color: #aa895b; font-size: 9px; letter-spacing: .14em; }
+#rhythm-stage .performance-subtitle p { min-height: 1.6em; margin: 5px 0 0; color: #e6d9bd; font-size: 14px; letter-spacing: .08em; }
+
+/* 控制台 */
+#rhythm-stage .control-deck {
+  position: absolute; z-index: 15; left: 50%; bottom: 24px; width: min(860px, calc(100vw - 220px));
+  min-height: 112px; transform: translateX(-50%) perspective(900px) rotateX(4deg); display: block;
+  padding: 16px 24px 18px; border: 1px solid rgba(239,198,122,.55); border-radius: 70px;
+  background: linear-gradient(180deg, rgba(24,25,23,.94), rgba(6,10,11,.96));
+  box-shadow: inset 0 1px 0 rgba(255,220,151,.15), inset 0 -9px 20px rgba(0,0,0,.5), 0 8px 0 #17120d, 0 18px 50px rgba(0,0,0,.65);
+  backdrop-filter: blur(18px);
+}
+#rhythm-stage .control-hint { margin: 10px 0 0; color: rgba(231,211,173,.62); font: 10px/1.5 ui-monospace, monospace; text-align: center; }
+#rhythm-stage .rhythm-keys { display: grid; grid-template-columns: repeat(7, minmax(64px, 1fr)); align-items: center; gap: 13px; }
+#rhythm-stage .rhythm-keys button { height: 72px; border-radius: 14px; }
+#rhythm-stage .control-deck button {
+  position: relative; border: 1px solid rgba(238,195,116,.62); color: #f1d39a;
+  background: linear-gradient(145deg, #292821, #0d1112);
+  box-shadow: inset 0 1px 0 rgba(255,229,173,.18), 0 5px 0 #100d09, 0 9px 16px rgba(0,0,0,.46);
+  cursor: pointer; transition: transform .08s ease, box-shadow .08s ease, background .08s ease;
+}
+#rhythm-stage .control-deck button kbd { display: block; font: 23px/1 ui-monospace, monospace; }
+#rhythm-stage .control-deck button span { display: block; margin-top: 3px; color: rgba(229,207,166,.55); font-size: 8px; }
+#rhythm-stage .control-deck button.pressed {
+  z-index: 2; transform: translateY(5px); color: #ffe4a7;
+  background: linear-gradient(145deg, #8c5b28, #332113);
+  box-shadow: inset 0 0 18px rgba(255,190,90,.5), 0 1px 0 #100d09, 0 0 25px rgba(238,157,57,.48);
+}
+#rhythm-stage .control-deck button.pressed::after {
+  content: ""; position: absolute; inset: -12px; border: 2px solid rgba(255,190,91,.75);
+  border-radius: inherit; pointer-events: none; animation: ry-key-wave .75s ease-out infinite;
+}
+@keyframes ry-key-wave { from { opacity: .9; transform: scale(.72); } to { opacity: 0; transform: scale(1.7); } }
+
+#rhythm-stage .difficulty-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 16px 0 0; }
+#rhythm-stage .difficulty-picker button {
+  padding: 8px 4px; border: 1px solid rgba(213,172,101,.22); background: rgba(213,172,101,.05);
+  color: #9e957f; cursor: pointer; font-size: 10px;
+}
+#rhythm-stage .difficulty-picker button.active { border-color: #b89158; background: rgba(184,145,88,.18); color: #e0c994; }
+
+/* 节奏轨道 */
+#rhythm-stage .rhythm-highway {
+  position: absolute; z-index: 18; left: 50%; top: 5%; bottom: 142px;
+  width: min(860px, calc(100vw - 220px)); transform: translateX(-50%) perspective(900px) rotateX(2deg);
+  overflow: hidden; pointer-events: none; border-inline: 1px solid rgba(226,181,100,.14);
+  background: linear-gradient(180deg, rgba(5,10,11,.12), rgba(5,10,11,.28));
+  mask-image: linear-gradient(to bottom, transparent, black 8%, black);
+}
+#rhythm-stage .rhythm-lanes { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); }
+#rhythm-stage .rhythm-lanes i {
+  position: relative; border-right: 1px solid rgba(223,181,106,.13);
+  background: linear-gradient(90deg, transparent, rgba(216,165,83,.025), transparent);
+}
+#rhythm-stage .rhythm-lanes i:last-child { border-right: 0; }
+#rhythm-stage .rhythm-lanes i span {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  color: rgba(226,194,135,.28); font: normal 10px ui-monospace, monospace;
+}
+#rhythm-stage .rhythm-highway article {
+  position: absolute; width: calc(100% / 7 - 18px); min-height: 58px; transform: translate(-50%, -50%);
+  display: grid; place-items: center; border: 1px solid rgba(238,191,105,.7); border-radius: 14px;
+  background: linear-gradient(145deg, rgba(116,63,28,.95), rgba(24,17,12,.96));
+  box-shadow: inset 0 1px rgba(255,225,163,.2), 0 8px 24px rgba(0,0,0,.55), 0 0 20px rgba(217,130,43,.25);
+  transition: top .09s linear;
+}
+#rhythm-stage .rhythm-highway article b { color: #ffe2a3; font: 25px/1 ui-monospace, monospace; }
+#rhythm-stage .rhythm-highway article small { margin-top: 4px; color: rgba(242,220,177,.72); font-size: 8px; }
+#rhythm-stage .rhythm-highway article.note-ready {
+  background: linear-gradient(145deg, rgba(174,99,36,.98), rgba(52,27,14,.98));
+  box-shadow: 0 0 0 7px rgba(231,169,74,.09), 0 0 34px rgba(233,136,42,.58);
+  animation: ry-note-ready .42s ease-in-out infinite alternate;
+}
+@keyframes ry-note-ready { to { filter: brightness(1.25); transform: translate(-50%, -50%) scale(1.05); } }
+#rhythm-stage .hit-line {
+  position: absolute; z-index: 2; left: 0; right: 0; bottom: 7%; height: 2px;
+  background: #e7b867; box-shadow: 0 0 8px #e7b867, 0 0 24px rgba(226,126,40,.75);
+}
+#rhythm-stage .hit-line span {
+  position: absolute; right: 8px; bottom: 8px; color: rgba(240,207,147,.55);
+  font: 8px ui-monospace, monospace; letter-spacing: .12em;
+}
+
+/* 窄屏适配 */
+@media (max-width: 760px) {
+  #rhythm-stage .garden-shell { min-height: 540px; }
+  #rhythm-stage .score-hud { top: 25%; }
+  #rhythm-stage .gal-dialogue { width: calc(100vw - 30px); bottom: 104px; min-height: 165px; padding: 22px 20px 18px; }
+  #rhythm-stage .dialogue-portrait { bottom: 240px; width: 150px; height: 250px; }
+  #rhythm-stage .dialogue-portrait.side-left { left: 8px; }
+  #rhythm-stage .dialogue-portrait.side-right { right: 8px; }
+  #rhythm-stage .gal-dialogue p { font-size: 12px; line-height: 1.75; }
+  #rhythm-stage .performance-subtitle { bottom: 145px; width: calc(100vw - 32px); }
+  #rhythm-stage .control-deck { width: calc(100vw - 24px); min-height: 88px; bottom: 12px; padding: 10px 12px 13px; border-radius: 40px; }
+  #rhythm-stage .rhythm-keys { grid-template-columns: repeat(7, minmax(38px, 1fr)); gap: 5px; }
+  #rhythm-stage .rhythm-keys button { height: 54px; border-radius: 10px; }
+  #rhythm-stage .rhythm-highway { width: calc(100vw - 24px); bottom: 112px; }
+  #rhythm-stage .rhythm-highway article { width: calc(100% / 7 - 7px); min-height: 44px; border-radius: 9px; }
+  #rhythm-stage .rhythm-highway article b { font-size: 18px; }
+  #rhythm-stage .rhythm-highway article small { display: none; }
+  #rhythm-stage .control-deck button kbd { font-size: 17px; }
+  #rhythm-stage .control-deck button span { display: none; }
+}

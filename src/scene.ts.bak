@@ -1,0 +1,787 @@
+import { Puppet, PuppetState } from "./puppet";
+import { mountRhythm, unmountRhythm, type Root } from "./rhythm/rhythm-mount";
+
+/**
+ * 长卷模型：一整张连续画卷，左半闺房（场景1），右半花园（场景2），
+ * 中间以剪纸屏柱遮挡接缝。人偶只在长卷上左右自由移动，镜头跟随平移。
+ *
+ * 全程无按键：所有剧情（敲门 / 对话 / 奖励 / 拼合 / 结算）都靠
+ * "走到区域 + 计时器" 自动演完。唯一保留的是开场"开始体验"与结算的"重新/结束"按钮。
+ * 方向输入（左右键 / 触屏）始终生效，移动不受任何状态限制。
+ */
+
+/** 镜头跟随：人偶目标屏幕位置（视口宽比例） */
+const CAM_FOLLOW = 0.42;
+/** 单个场景的世界宽度（视口倍数）。与 style.css 的 --scene-w 保持一致。 */
+const SCENE_W = 1.4;
+/** 长卷可滚动范围 */
+const SCROLL_MAX = 3 * SCENE_W - 1;
+
+/** 各剧情节点的世界坐标（视口宽比例） */
+const CHAMBER = { left: 0.12 * SCENE_W, right: 0.9 * SCENE_W, door: 0.76 * SCENE_W, start: 0.3 * SCENE_W };
+const SEAM1 = 1.0 * SCENE_W;
+const SEAM2 = 2.0 * SCENE_W;
+const THEATRE = { enter: 1.08 * SCENE_W, center: 1.5 * SCENE_W, exit: 1.92 * SCENE_W };
+const GARDEN = { left: 2.08 * SCENE_W, right: 2.9 * SCENE_W, talk: 2.2 * SCENE_W, mirror: 2.67 * SCENE_W };
+/** 角色可在整条长卷上自由移动的范围 */
+const WORLD_LEFT = 0.04;
+const WORLD_RIGHT = 3 * SCENE_W - 0.04;
+
+/** 走到门口 / 镜面多近就算"到达"（视口宽比例） */
+const DOOR_ZONE = 0.06;
+const THEATRE_ZONE = 0.06;
+const TALK_ZONE = 0.06;
+const MIRROR_ZONE = 0.06;
+
+/** 行走速度（视口宽 / 秒） */
+const WALK_SPEED = 0.34;
+
+/** 自动推进节奏（秒）：剧情靠到达区域 + 计时自动演完 */
+const KNOCK_INTERVAL = 1.8;   // 每次敲门台词间隔
+const TALK_INTERVAL = 3.2;    // 每句花园对话间隔
+const REWARD_HOLD = 3.6;      // 奖励卡片自动停留
+const LEAVE_TEXT_HOLD = 4.5;  // "不到园林" 停留后给双手
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document) =>
+  root.querySelector(sel) as T | null;
+
+type GState =
+  | "intro" | "approach" | "leaveText" | "rewardHands" | "freeRoam"
+  | "toTheatre" | "rhythm" | "rhythmDone" | "gardenRoam"
+  | "gardenTalk" | "rewardFeet" | "toMirror" | "assemble" | "rewardTorso"
+  | "finale";
+
+const KNOCK_LINES = [
+  "「女子无才便是德。」",
+  "「不孝有三，无后为大。」",
+  "「三从四德，女子当守其本分。」",
+  "三声齐至——字影震碎，门，开了。",
+];
+const GARDEN_TALK: { who: "玩家" | "杜丽娘"; text: string; anim?: PuppetState }[] = [
+  { who: "玩家", text: "你是谁？" },
+  { who: "杜丽娘", text: "我是杜丽娘。", anim: "hi" },
+  { who: "玩家", text: "你是杜丽娘，那我是谁？" },
+  { who: "杜丽娘", text: "你也是杜丽娘。" },
+  { who: "玩家", text: "不，我不是杜丽娘。" },
+  { who: "杜丽娘", text: "请随我来。", anim: "hi" },
+];
+const ASSEMBLE_LINES = {
+  start: { who: "玩家", text: "我是谁？" },
+  placed: { who: "镜子", text: "你是杜丽娘。" },
+  missing: { who: "玩家", text: "不，我不是杜丽娘。我是个看客罢了。" },
+  shadow: { who: "镜子", text: "或许每个人的灵魂里都有一个杜丽娘。" },
+};
+
+const UI_STYLE = `
+/* ===== 梦入牡丹亭 · 玩法覆盖层（运行时注入） ===== */
+.mudan-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, rgba(22,10,16,.86), rgba(5,2,6,.97)); animation: mdFadeIn .5s ease; }
+.mudan-overlay.hidden { display: none !important; }
+@keyframes mdFadeIn { from{opacity:0} to{opacity:1} }
+.md-btn { font-family: var(--serif); letter-spacing:.18em; text-indent:.18em; cursor:pointer; border-radius:4px;
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease; border:none; }
+.md-primary { padding:12px 30px; font-size:clamp(16px,2vw,20px); color:#1a0a08;
+  background:linear-gradient(180deg,var(--gold-bright),var(--ember)); border:1px solid var(--gold-bright);
+  box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.4); }
+.md-primary:hover{ transform:translateY(-2px); box-shadow:0 10px 26px rgba(217,138,60,.4); }
+.md-ghost { padding:12px 26px; font-size:clamp(15px,1.8vw,18px); color:var(--paper); background:transparent;
+  border:1px solid rgba(217,160,63,.55); }
+.md-ghost:hover{ background:rgba(217,160,63,.12); }
+/* 开场 */
+#md-intro .md-card { max-width:min(560px,88vw); padding:38px 34px 30px; text-align:center; color:var(--paper);
+  background:linear-gradient(180deg,rgba(28,12,18,.92),rgba(14,6,10,.96)); border:1px solid rgba(217,160,63,.4);
+  border-top:2px solid var(--gold); border-bottom:2px solid var(--gold); box-shadow:0 20px 60px rgba(0,0,0,.6); }
+.md-title { font-size:clamp(30px,5vw,46px); letter-spacing:.3em; text-indent:.3em; color:var(--gold-bright);
+  text-shadow:0 0 24px rgba(217,138,60,.5); }
+.md-sub { margin-top:6px; font-size:clamp(15px,2vw,19px); letter-spacing:.4em; text-indent:.4em; color:var(--ember); }
+.md-controls { list-style:none; margin:26px auto 12px; max-width:420px; text-align:left; }
+.md-controls li{ display:flex; align-items:center; gap:16px; padding:10px 6px;
+  border-bottom:1px dashed rgba(217,160,63,.25); font-size:clamp(14px,1.8vw,17px); letter-spacing:.08em; }
+.md-ctl-keys{ display:inline-flex; gap:6px; min-width:96px; }
+.md-controls kbd{ display:inline-block; min-width:30px; padding:3px 8px; text-align:center; font-family:monospace;
+  font-size:.9em; color:var(--gold-bright); border:1px solid rgba(217,160,63,.6); border-radius:4px; background:rgba(0,0,0,.25); }
+.md-note{ margin:4px 0 22px; font-size:13px; letter-spacing:.1em; color:rgba(242,216,168,.55); }
+/* 幕题 */
+#md-act { position:fixed; top:16vh; left:0; right:0; z-index:30; text-align:center; pointer-events:none; opacity:0;
+  transition:opacity .9s ease; }
+#md-act.show{ opacity:1; }
+#md-act span{ display:inline-block; padding:10px 38px; font-size:clamp(26px,4.2vw,44px); letter-spacing:.35em;
+  text-indent:.35em; color:var(--paper); text-shadow:0 0 26px rgba(217,138,60,.6),0 2px 6px rgba(0,0,0,.8);
+  border-top:1px solid rgba(217,160,63,.5); border-bottom:1px solid rgba(217,160,63,.5);
+  background:linear-gradient(90deg,transparent,rgba(22,10,16,.72) 18%,rgba(22,10,16,.72) 82%,transparent); }
+/* 字幕 */
+#md-sub { position:fixed; left:50%; bottom:17vh; transform:translateX(-50%); z-index:35; max-width:min(720px,84vw);
+  padding:12px 28px; text-align:center; font-size:clamp(17px,2.4vw,24px); letter-spacing:.12em; line-height:1.7;
+  color:var(--paper); text-shadow:0 0 14px rgba(217,138,60,.55),0 2px 6px rgba(0,0,0,.85);
+  background:linear-gradient(90deg,transparent,rgba(14,6,10,.72) 14%,rgba(14,6,10,.72) 86%,transparent);
+  border-top:1px solid rgba(217,160,63,.35); border-bottom:1px solid rgba(217,160,63,.35); animation:mdSubIn .4s ease; }
+#md-sub.hidden{ display:none; }
+#md-sub .who{ display:block; margin-bottom:4px; font-size:.62em; letter-spacing:.3em; color:var(--gold-bright); }
+#md-sub.shake{ animation:mdShake .5s ease; }
+@keyframes mdSubIn{ from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+@keyframes mdShake{ 0%,100%{transform:translateX(-50%)} 20%{transform:translate(calc(-50% - 5px),2px) skewX(-3deg)}
+  40%{transform:translate(calc(-50% + 5px),-2px) skewX(3deg)} 60%{transform:translate(calc(-50% - 4px),2px) skewX(-2deg)}
+  80%{transform:translate(calc(-50% + 4px),-1px) skewX(2deg)} }
+/* 门暖光（位于长卷内闺房门处） */
+#md-door { position:absolute; bottom:9%; left:38%; width:9%; height:64%; z-index:6;
+  background:radial-gradient(ellipse 60% 80% at 50% 45%, rgba(245,201,107,.55), rgba(245,201,107,0) 70%);
+  opacity:0; transition:opacity 1.1s ease; pointer-events:none; filter:blur(2px); mix-blend-mode:screen; }
+#md-door.lit{ opacity:1; }
+#md-door.hidden{ display:none; }
+/* 镜子（位于长卷内花园） */
+#md-mirror { position:absolute; bottom:9%; left:89%; height:46%; aspect-ratio:466/626; transform:translateX(-50%) translateY(-27%); z-index:4;
+  transition:opacity 1.2s ease; }
+#md-mirror.hidden{ display:none; }
+.mirror-img{ width:100%; height:100%; display:block; object-fit:contain;
+  filter:drop-shadow(0 6px 28px rgba(0,0,0,.55)) drop-shadow(0 0 14px rgba(217,138,60,.3)); transition:filter .5s ease; }
+.mirror-frags{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:space-around;
+  pointer-events:none; }
+.frag{ font-family:var(--serif); font-size:clamp(13px,1.1vw,18px); letter-spacing:.2em; text-indent:.2em; color:var(--paper);
+  padding:4px 14px; border-radius:4px; background:linear-gradient(180deg,rgba(217,138,60,.85),rgba(180,100,40,.85));
+  border:1px solid var(--gold-bright); box-shadow:0 0 12px rgba(240,192,96,.7); opacity:0; transform:scale(.6);
+  transition:opacity .5s ease,transform .5s ease; }
+#md-mirror.blurred .mirror-img{ filter:blur(4px) brightness(.7); }
+#md-mirror.filled-hands .frag-hands,#md-mirror.filled-feet .frag-feet,#md-mirror.filled-torso .frag-torso{
+  opacity:1; transform:scale(1); }
+/* 奖励（不阻挡、自动消失的浮卡） */
+#md-reward { position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; animation:mdFadeIn .5s ease; }
+#md-reward.hidden{ display:none; }
+.md-reward-card{ width:min(420px,86vw); padding:30px 28px 26px; text-align:center; color:var(--paper);
+  background:linear-gradient(180deg,rgba(28,12,18,.94),rgba(14,6,10,.97)); border:1px solid rgba(217,160,63,.45);
+  border-top:2px solid var(--gold); border-bottom:2px solid var(--gold);
+  box-shadow:0 0 40px rgba(217,138,60,.25),0 18px 50px rgba(0,0,0,.6); animation:mdPop .5s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes mdPop{ from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
+.md-shard{ width:70px; height:90px; margin:0 auto 16px;
+  background:radial-gradient(circle at 40% 30%,var(--gold-bright),var(--ember) 60%,var(--lacquer));
+  clip-path:polygon(50% 0,100% 35%,80% 100%,20% 100%,0 35%); box-shadow:0 0 26px rgba(240,192,96,.6);
+  animation:mdGlow 2.4s ease-in-out infinite; }
+@keyframes mdGlow{ 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.3)} }
+.md-reward-card h2{ font-size:clamp(20px,2.6vw,26px); letter-spacing:.16em; color:var(--gold-bright); }
+.md-reward-card p{ margin:10px 0 0; font-size:clamp(14px,1.8vw,17px); line-height:1.7; letter-spacing:.06em;
+  color:rgba(242,216,168,.85); }
+/* 水波 */
+#md-ripple{ position:fixed; inset:0; z-index:65; pointer-events:none;
+  background:radial-gradient(circle at 50% 60%,rgba(217,160,63,.5) 0 2px,transparent 3px),
+    radial-gradient(circle at 50% 60%,rgba(217,160,63,.35) 0 40px,transparent 42px),
+    radial-gradient(circle at 50% 60%,rgba(217,138,60,.25) 0 120px,transparent 122px),rgba(8,4,6,0);
+  animation:mdRipple 2.2s ease forwards; }
+#md-ripple.hidden{ display:none; }
+@keyframes mdRipple{ 0%{opacity:0;transform:scale(.2)} 30%{opacity:1}
+  100%{opacity:0;transform:scale(2.4);background-color:rgba(8,4,6,.85)} }
+/* 结算 */
+#md-finale .md-finale-card{ width:min(480px,88vw); padding:34px 30px 28px; text-align:center; color:var(--paper);
+  background:linear-gradient(180deg,rgba(28,12,18,.95),rgba(14,6,10,.98)); border:1px solid rgba(217,160,63,.45);
+  border-top:2px solid var(--gold); border-bottom:2px solid var(--gold);
+  box-shadow:0 0 50px rgba(217,138,60,.3),0 20px 60px rgba(0,0,0,.65); animation:mdPop .6s cubic-bezier(.2,.9,.3,1.2); }
+.md-finale-name{ font-size:clamp(24px,3.4vw,32px); letter-spacing:.24em; text-indent:.24em; color:var(--gold-bright);
+  text-shadow:0 0 20px rgba(217,138,60,.5); }
+.md-finale-type{ margin:12px 0 4px; font-size:clamp(16px,2.1vw,20px); letter-spacing:.2em; color:var(--ember); }
+.md-finale-keys{ margin:6px 0 14px; font-size:clamp(14px,1.8vw,16px); letter-spacing:.16em; color:rgba(240,192,96,.85); }
+.md-finale-text{ margin:0 0 24px; font-size:clamp(14px,1.8vw,16px); line-height:1.9; letter-spacing:.06em;
+  color:rgba(242,216,168,.82); }
+.md-finale-btns{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+`;
+
+export class FlatStage {
+  private stage: HTMLElement;
+  private panorama: HTMLElement;
+  private puppetLayer: HTMLElement;
+  private puppet!: Puppet;
+  private ready = false;
+
+  // 注入的覆盖层
+  private introEl: HTMLElement;
+  private subtitleEl: HTMLElement;
+  private subtitleText: HTMLElement;
+  private hintEl: HTMLElement;
+  private rewardEl: HTMLElement;
+  private rewardTitle: HTMLElement;
+  private rewardDesc: HTMLElement;
+  private mirrorEl: HTMLElement;
+  private doorGlowEl: HTMLElement;
+  private rippleEl: HTMLElement;
+  private finaleEl: HTMLElement;
+  private theatreWrap: HTMLElement | null = null;
+  private finaleType: HTMLElement;
+  private finaleKeys: HTMLElement;
+  private finaleText: HTMLElement;
+  private actEl: HTMLElement;
+  private dimEl: HTMLElement;
+  private layers: { el: HTMLElement; depth: number }[] = [];
+
+  // 状态机（全程无按键：靠走到区域 + 计时自动推进）
+  private state: GState = "intro";
+  private timer = 0;          // 当前状态计时
+  private knockCount = 0;     // 已敲门次数
+  private knockStarted = false;
+  private knockTimer = 0;
+  private talkIndex = 0;
+  private act2Shown = false;
+  private fragmentHands = false;
+  private fragmentFeet = false;
+  private fragmentTorso = false;
+  // 拼合阶段是否已填入（独立于奖励碎片标记）
+  private assmHands = false;
+  private assmFeet = false;
+  // 行山节奏舞台
+  private theatreEl: HTMLElement | null = null;
+  private rhythmRoot: Root | null = null;
+  private rhythmMounted = false;
+  private act3Shown = false;
+  private rhythmGrade = "";
+
+  private charX = CHAMBER.start;
+  private facing = 1;
+  private camX = 0;
+  private keys = { left: false, right: false };
+  private mx = 0; private my = 0; private tmx = 0; private tmy = 0;
+
+  constructor(stage: HTMLElement) {
+    this.stage = stage;
+    this.panorama = $$(".panorama", stage) || stage;
+    this.puppetLayer = $$("#puppet-layer", stage) || stage;
+    this.dimEl = $$("#stage-dim") || stage;
+    this.hintEl = $$("#hint") || (() => { const d = document.createElement("div"); d.id = "hint"; document.body.appendChild(d); return d; })();
+
+    // 注入样式
+    const styleEl = document.createElement("style");
+    styleEl.id = "mudan-ui-style";
+    styleEl.textContent = UI_STYLE;
+    document.head.appendChild(styleEl);
+
+    // 注入覆盖层 DOM
+    this.actEl = this.inject(`<div id="md-act" class="hidden"><span></span></div>`);
+    this.subtitleEl = this.inject(`<div id="md-sub" class="hidden"></div>`);
+    this.subtitleText = this.subtitleEl;
+    this.rewardEl = this.inject(`<div id="md-reward" class="hidden">
+      <div class="md-reward-card"><div class="md-shard"></div><h2></h2><p></p></div></div>`);
+    this.rewardTitle = this.rewardEl.querySelector("h2")!;
+    this.rewardDesc = this.rewardEl.querySelector("p")!;
+    this.rippleEl = this.inject(`<div id="md-ripple" class="hidden" aria-hidden="true"></div>`);
+    this.finaleEl = this.inject(`<div id="md-finale" class="mudan-overlay hidden">
+      <div class="md-finale-card"><h2 class="md-finale-name">你的杜丽娘</h2>
+      <p class="md-finale-type"></p><p class="md-finale-keys"></p><p class="md-finale-text"></p>
+      <div class="md-finale-btns"><button class="md-btn md-primary" type="button">重新体验</button>
+      <button class="md-btn md-ghost" type="button">结束体验</button></div></div></div>`);
+    this.finaleType = this.finaleEl.querySelector(".md-finale-type")!;
+    this.finaleKeys = this.finaleEl.querySelector(".md-finale-keys")!;
+    this.finaleText = this.finaleEl.querySelector(".md-finale-text")!;
+    this.introEl = this.inject(`<div id="md-intro" class="mudan-overlay">
+      <div class="md-card"><h1 class="md-title">梦入牡丹亭</h1><p class="md-sub">寻回杜丽娘</p>
+      <ul class="md-controls">
+      <li><span class="md-ctl-keys"><kbd>←</kbd><kbd>→</kbd></span><span>左右移动，走到目标即可</span></li>
+      </ul><p class="md-note">剧情会自动展开，无需按键。</p>
+      <button class="md-btn md-primary" type="button">开始体验</button></div></div>`);
+
+    // 门光、镜子放进长卷内（随镜头平移）
+    this.doorGlowEl = this.inject(`<div id="md-door" class="hidden" aria-hidden="true"></div>`, this.panorama);
+    this.mirrorEl = this.inject(`<div id="md-mirror"><img class="mirror-img" src="/mirror/mirror.png" alt="" /><div class="mirror-frags"><span class="frag frag-hands">双手</span><span class="frag frag-feet">双脚</span><span class="frag frag-torso">躯干</span></div></div>`, this.panorama);
+
+    // 收集长卷图层
+    for (const layer of this.panorama.querySelectorAll<HTMLElement>(".layer")) {
+      this.layers.push({ el: layer, depth: parseFloat(layer.dataset.depth || "0.03") });
+    }
+
+    this.bindParallax();
+    this.bindInput();
+  }
+
+  private inject(html: string, parent: HTMLElement = document.body): HTMLElement {
+    const wrap = document.createElement("template");
+    wrap.innerHTML = html.trim();
+    const node = wrap.content.firstElementChild as HTMLElement;
+    parent.appendChild(node);
+    return node;
+  }
+
+  async initPuppet() {
+    this.puppet = new Puppet(this.puppetLayer);
+    await this.puppet.load();
+    await this.initScenes();
+    this.ready = true;
+    this.charX = CHAMBER.start;
+    this.camX = clamp(this.charX - CAM_FOLLOW, 0, SCROLL_MAX);
+    this.facing = 1;
+    this.applyCamera();
+    this.puppet.setState("idle");
+  }
+
+  // ---------- 输入（仅左右移动，无任何交互键） ----------
+  private bindParallax() {
+    const onMove = (cx: number, cy: number) => {
+      this.tmx = (cx / window.innerWidth) * 2 - 1;
+      this.tmy = (cy / window.innerHeight) * 2 - 1;
+    };
+    window.addEventListener("pointermove", (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener("touchmove", (e) => {
+      if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+  }
+
+  private bindInput() {
+    window.addEventListener("keydown", (e) => {
+      if (e.repeat) return;
+      switch (e.code) {
+        case "ArrowLeft": case "KeyA": this.keys.left = true; e.preventDefault(); break;
+        case "ArrowRight": case "KeyD": this.keys.right = true; e.preventDefault(); break;
+      }
+    });
+    window.addEventListener("keyup", (e) => {
+      switch (e.code) {
+        case "ArrowLeft": case "KeyA": this.keys.left = false; break;
+        case "ArrowRight": case "KeyD": this.keys.right = false; break;
+      }
+    });
+    // 触屏 / 鼠标按住左右半屏移动
+    this.stage.addEventListener("pointerdown", (e) => {
+      const rel = e.clientX / window.innerWidth;
+      if (rel < 0.5) { this.keys.left = true; this.keys.right = false; }
+      else { this.keys.right = true; this.keys.left = false; }
+    });
+    const release = () => { this.keys.left = false; this.keys.right = false; };
+    this.stage.addEventListener("pointerup", release);
+    this.stage.addEventListener("pointerleave", release);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", () => { if (document.hidden) release(); });
+
+    // 仅保留开场与结算的两个入口按钮（非剧情强制按键）
+    this.introEl.querySelector("button")!.addEventListener("click", () => this.beginGame());
+    this.finaleEl.querySelectorAll("button")[0].addEventListener("click", () => this.replay());
+    this.finaleEl.querySelectorAll("button")[1].addEventListener("click", () => this.endExperience());
+  }
+
+  private beginGame() {
+    if (!this.ready) return;
+    this.introEl.classList.add("hidden");
+    this.dimEl.classList.add("lit");
+    this.actTitle("第一幕 · 幽闭闺房");
+    this.enter("approach");
+    this.showHint(true, 4500);
+  }
+
+  // ---------- UI 辅助 ----------
+  private showHint(show: boolean, autoHideMs = 0) {
+    if (show) {
+      this.hintEl.classList.remove("hidden");
+      if (autoHideMs) setTimeout(() => this.hintEl.classList.add("hidden"), autoHideMs);
+    } else this.hintEl.classList.add("hidden");
+  }
+  private say(text: string, who?: string, shake = false) {
+    const whoHtml = who ? `<span class="who">${who}</span>` : "";
+    this.subtitleText.innerHTML = whoHtml + text;
+    this.subtitleEl.classList.remove("hidden", "shake");
+    if (shake) { void this.subtitleEl.offsetWidth; this.subtitleEl.classList.add("shake"); }
+  }
+  private clearSay() { this.subtitleEl.classList.add("hidden"); }
+  private actTitle(title: string) {
+    const span = this.actEl.querySelector("span")!;
+    span.textContent = title;
+    this.actEl.classList.remove("hidden");
+    requestAnimationFrame(() => this.actEl.classList.add("show"));
+    setTimeout(() => {
+      this.actEl.classList.remove("show");
+      setTimeout(() => this.actEl.classList.add("hidden"), 900);
+    }, 2200);
+  }
+  private showReward(title: string, desc: string) {
+    this.rewardTitle.textContent = title;
+    this.rewardDesc.textContent = desc;
+    this.rewardEl.classList.remove("hidden");
+  }
+  private hideReward() { this.rewardEl.classList.add("hidden"); }
+
+  // ---------- 状态切换 ----------
+  private enter(s: GState) {
+    this.state = s;
+    this.timer = 0;
+    switch (s) {
+      case "approach":
+        this.say("走向那扇门……", "闺房");
+        break;
+      case "leaveText":
+        this.clearSay();
+        this.say("不到园林，怎知春色如许", "杜丽娘");
+        this.puppet?.setState("idle");
+        break;
+      case "rewardHands":
+        this.fragmentHands = true;
+        this.showReward("获得：杜丽娘 · 双手", "点亮编织自我人生的能力。");
+        break;
+      case "freeRoam":
+        this.hideReward();
+        this.say("穿过屏柱，前方似有戏台……", undefined);
+        break;
+      case "toTheatre":
+        this.clearSay();
+        this.ensureTheatre();
+        this.say("月门之内，灯影将起——", "行山");
+        break;
+      case "rhythm":
+        this.clearSay();
+        break;
+      case "rhythmDone":
+        this.hideTheatre();
+        this.say("一曲既罢，再向前便是花园。", undefined);
+        break;
+      case "gardenRoam":
+        this.clearSay();
+        break;
+      case "gardenTalk":
+        this.clearSay();
+        this.talkIndex = 0;
+        this.say(GARDEN_TALK[0].text, GARDEN_TALK[0].who);
+        this.puppet?.setState(GARDEN_TALK[0].anim || "idle");
+        this.talkIndex = 1;
+        break;
+      case "rewardFeet":
+        this.fragmentFeet = true;
+        this.clearSay();
+        this.showReward("获得：杜丽娘 · 双脚", "拥有选择方向的自由。");
+        break;
+     case "toMirror":
+       this.hideReward();
+        this.mirrorEl.classList.remove("blurred", "filled-hands", "filled-feet", "filled-torso");
+       this.say("镜中似有人影，走近看看。", "花园");
+       break;
+      case "assemble":
+        this.clearSay();
+        this.mirrorEl.classList.add("blurred");
+        this.say(ASSEMBLE_LINES.start.text, ASSEMBLE_LINES.start.who);
+        break;
+      case "rewardTorso":
+        this.fragmentTorso = true;
+        this.clearSay();
+        this.showReward("获得：杜丽娘 · 躯干", "你的影子，终成了她自己。");
+        break;
+      case "finale":
+        this.startFinale();
+        break;
+    }
+  }
+
+  /** 创建节奏戏台覆盖层并异步加载皮影模型；加载完成后自动开演。 */
+  private ensureTheatre() {
+    if (this.theatreEl) return;
+    const wrap = document.createElement("div");
+    wrap.id = "rhythm-stage";
+    wrap.style.cssText = "position:fixed;inset:0;z-index:40;opacity:1;";
+   document.body.appendChild(wrap);
+   this.theatreEl = wrap;
+   this.theatreWrap = wrap;
+    this.enter("rhythm");
+   // 挂载原版音游（React + R3F）：舞台、月门背景、皮影、下落音符、键盘评分全部沿用原版
+    this.rhythmRoot = mountRhythm(wrap, {
+      onFinish: (res) => {
+        this.rhythmGrade = res.grade;
+        this.enter("rhythmDone");
+      },
+    });
+    this.rhythmMounted = true;
+    this.charX = THEATRE.center;
+  }
+
+  private hideTheatre() {
+    const el = this.theatreEl;
+    if (el) {
+      el.style.opacity = "0";
+      window.setTimeout(() => {
+        unmountRhythm(this.rhythmRoot);
+        this.rhythmRoot = null;
+        this.rhythmMounted = false;
+        el.remove();
+        this.theatreEl = null;
+      }, 300);
+   }
+   // 离开戏台后把人偶放到戏台出口，朝向花园
+    this.charX = THEATRE.exit;
+    this.facing = 1;
+  }
+
+  private playRipple() {
+    this.rippleEl.classList.remove("hidden");
+    this.rippleEl.style.animation = "none";
+    void this.rippleEl.offsetWidth;
+    this.rippleEl.style.animation = "";
+    window.setTimeout(() => {
+      this.rippleEl.classList.add("hidden");
+      this.enter("finale");
+    }, 2200);
+  }
+
+  private startFinale() {
+    this.hideReward();
+    this.finaleEl.classList.remove("hidden");
+    this.puppet?.setState("hi");
+    this.finaleType.textContent = "镜中人";
+    this.finaleKeys.textContent = "寻回 · 觉醒 · 自由";
+    this.finaleText.textContent =
+      "双手织梦，双脚择路，躯干里盛着看客的影子。你寻回的杜丽娘，从来都住在你自己身上。";
+  }
+  private replay() {
+   this.finaleEl.classList.add("hidden");
+   this.clearSay();
+   this.mirrorEl.classList.remove("filled-hands", "filled-feet", "filled-torso", "blurred");
+    this.doorGlowEl.classList.remove("lit");
+    this.doorGlowEl.classList.add("hidden");
+    this.fragmentHands = this.fragmentFeet = this.fragmentTorso = false;
+    this.assmHands = this.assmFeet = false;
+    this.knockCount = 0;
+    this.knockStarted = false;
+    this.knockTimer = 0;
+    this.talkIndex = 0;
+    this.act2Shown = false;
+    this.act3Shown = false;
+    this.rhythmGrade = "";
+    if (this.theatreEl) { unmountRhythm(this.rhythmRoot); this.rhythmRoot = null; this.rhythmMounted = false; this.theatreEl.remove(); this.theatreEl = null; }
+    this.charX = CHAMBER.start;
+    this.facing = 1;
+    this.actTitle("第一幕 · 幽闭闺房");
+    this.enter("approach");
+  }
+  private endExperience() {
+    this.finaleEl.classList.add("hidden");
+    this.dimEl.classList.remove("lit");
+    this.clearSay();
+    this.say("幕落。", undefined);
+  }
+
+  // ---------- 主循环 ----------
+  update(dt: number) {
+    this.mx += (this.tmx - this.mx) * 0.06;
+    this.my += (this.tmy - this.my) * 0.06;
+
+    // 戏台期间交由原版音游（React 应用）接管，暂停长卷移动与人偶渲染
+    const inTheatre = this.state === "toTheatre" || this.state === "rhythm" || this.state === "rhythmDone";
+    if (!inTheatre) {
+      this.handleFreeMove(dt);
+      this.tickState(dt);
+      const targetCam = clamp(this.charX - CAM_FOLLOW, 0, SCROLL_MAX);
+      this.camX += (targetCam - this.camX) * Math.min(1, dt * 6);
+      this.applyCamera();
+      if (this.puppet) {
+        this.puppet.setFacing(this.facing);
+        this.puppet.render();
+      }
+    } else {
+      this.tickState(dt);
+      if (this.theatreEl) {
+        // 让相机停留在戏台中心
+        const targetCam = clamp(THEATRE.center - CAM_FOLLOW, 0, SCROLL_MAX);
+        this.camX += (targetCam - this.camX) * Math.min(1, dt * 6);
+        this.applyCamera();
+      }
+    }
+  }
+
+  private handleFreeMove(dt: number) {
+    let dir = 0;
+    if (this.keys.right) dir += 1;
+    if (this.keys.left) dir -= 1;
+    if (dir !== 0) {
+      this.facing = dir;
+      this.charX += dir * WALK_SPEED * dt;
+      // 整条长卷自由移动，不做按状态的区域限制
+      this.charX = clamp(this.charX, WORLD_LEFT, WORLD_RIGHT);
+      this.puppet?.setState("walk");
+      this.puppet?.setMoveRate(WALK_SPEED);
+    } else {
+      this.puppet?.setState("idle");
+    }
+  }
+
+  /** 靠"走到区域 + 计时"自动推进全部剧情，全程无需按键 */
+  private tickState(dt: number) {
+    switch (this.state) {
+      // —— 第一幕：走到门口自动敲门 ——
+      case "approach": {
+        if (!this.knockStarted && Math.abs(this.charX - CHAMBER.door) <= DOOR_ZONE) {
+          this.knockStarted = true;
+          this.knockTimer = 0;
+          this.knockCount = 1;
+          this.say(KNOCK_LINES[0], "门外之声");
+        }
+        if (this.knockStarted && this.knockCount < 4) {
+          this.knockTimer += dt;
+          if (this.knockTimer >= KNOCK_INTERVAL) {
+            this.knockTimer = 0;
+            const idx = this.knockCount;
+            const last = idx === 3;
+            this.say(KNOCK_LINES[idx], last ? undefined : "门外之声", last);
+            this.knockCount++;
+            if (last) {
+              this.doorGlowEl.classList.remove("hidden");
+              this.doorGlowEl.classList.add("lit");
+              window.setTimeout(() => this.enter("leaveText"), 1400);
+            }
+          }
+        }
+        break;
+      }
+      // —— "不到园林" 停留后给双手 ——
+      case "leaveText": {
+        this.timer += dt;
+        if (this.timer >= LEAVE_TEXT_HOLD) this.enter("rewardHands");
+        break;
+      }
+      // —— 奖励自动消失 ——
+      case "rewardHands": {
+        this.timer += dt;
+        if (this.timer >= REWARD_HOLD) this.enter("freeRoam");
+        break;
+      }
+      // —— 自由走向花园：过屏柱出第二幕题，到对话点开演 ——
+      case "freeRoam": {
+        if (!this.act2Shown && this.charX > SEAM1) {
+          this.act2Shown = true;
+          this.actTitle("第二幕 · 月门戏台");
+        }
+        if (this.charX >= THEATRE.center - THEATRE_ZONE) this.enter("toTheatre");
+        break;
+      }
+      // —— 进入戏台：加载节奏后自动开演 ——
+      case "toTheatre": {
+        // 音游由挂载的 React 应用驱动，结束回调直接进入 rhythmDone
+        break;
+      }
+      // —— 节奏演出进行中：由挂载的 React 音游自驱动 ——
+      case "rhythm": {
+        break;
+      }
+      // —— 节奏结束：短暂停留后去花园 ——
+      case "rhythmDone": {
+        this.timer += dt;
+        if (this.timer >= 2.4) this.enter("gardenRoam");
+        break;
+      }
+      // —— 自由走向花园对话点 ——
+      case "gardenRoam": {
+        if (!this.act3Shown && this.charX > SEAM2) {
+          this.act3Shown = true;
+          this.actTitle("第三幕 · 花园");
+        }
+        if (this.charX >= GARDEN.talk - TALK_ZONE) this.enter("gardenTalk");
+        break;
+      }
+      // —— 花园对话自动逐句 ——
+      case "gardenTalk": {
+        this.timer += dt;
+        if (this.talkIndex < GARDEN_TALK.length && this.timer >= TALK_INTERVAL) {
+          this.timer = 0;
+          const line = GARDEN_TALK[this.talkIndex];
+          this.say(line.text, line.who);
+          this.puppet?.setState(line.anim || "idle");
+          this.talkIndex++;
+        } else if (this.talkIndex >= GARDEN_TALK.length && this.timer >= TALK_INTERVAL) {
+          this.enter("rewardFeet");
+        }
+        break;
+      }
+      // —— 双脚奖励自动消失，去镜面 ——
+      case "rewardFeet": {
+        this.timer += dt;
+        if (this.timer >= REWARD_HOLD) this.enter("toMirror");
+        break;
+      }
+      // —— 走近镜面自动进入拼合 ——
+      case "toMirror": {
+        if (Math.abs(this.charX - GARDEN.mirror) <= MIRROR_ZONE) this.enter("assemble");
+        break;
+      }
+      // —— 拼合全自动：按计时依次填入双手 / 双脚 / 躯干 ——
+      case "assemble": {
+        this.timer += dt;
+        if (this.timer >= 1.2 && !this.assmHands) {
+          this.assmHands = true;
+          this.mirrorEl.classList.add("filled-hands");
+        } else if (this.timer >= 2.6 && !this.assmFeet) {
+          this.assmFeet = true;
+          this.mirrorEl.classList.add("filled-feet");
+          this.say(ASSEMBLE_LINES.placed.text, ASSEMBLE_LINES.placed.who);
+        } else if (this.timer >= 4.0 && this.mirrorEl.classList.contains("blurred")) {
+          this.mirrorEl.classList.remove("blurred");
+          this.say(ASSEMBLE_LINES.missing.text, ASSEMBLE_LINES.missing.who);
+        } else if (this.timer >= 5.4 && !this.fragmentTorso) {
+          this.fragmentTorso = true;
+          this.mirrorEl.classList.add("filled-torso");
+          this.say(ASSEMBLE_LINES.shadow.text, ASSEMBLE_LINES.shadow.who);
+        } else if (this.timer >= 6.8) {
+          this.enter("rewardTorso");
+        }
+        break;
+      }
+      // —— 躯干奖励自动消失 → 水波 → 结算 ——
+      case "rewardTorso": {
+        this.timer += dt;
+        if (this.timer >= REWARD_HOLD) { this.hideReward(); this.playRipple(); }
+        break;
+      }
+    }
+  }
+
+  private applyCamera() {
+    const vw = window.innerWidth;
+    this.panorama.style.transform = `translate3d(${(-this.camX * vw).toFixed(2)}px,0,0)`;
+    // puppet lives inside .panorama (world space); camera scroll carries it,
+    // so its left is the world X (charX * vw), not the on-screen X.
+    this.puppetLayer.style.left = `${(this.charX * vw).toFixed(2)}px`;
+    this.puppetLayer.style.transform = "translateX(-50%)";
+    for (const { el, depth } of this.layers) {
+      const ox = -this.mx * depth * 60;
+      const oy = -this.my * depth * 40;
+      el.style.transform = `translate3d(${ox.toFixed(2)}px,${oy.toFixed(2)}px,0)`;
+    }
+  }
+
+  /**
+   * 场景图层准备：花园（场景2）的中后景 / 前景是绿幕抠图层，
+   * 在加载时把 rgb(0,255,0) 抠成透明，注入为该半区的背景，使其与后景正确叠加。
+   * 闺房（场景1）三层本身带有真实透明通道，直接 CSS 叠加即可。
+   */
+  private async initScenes() {
+    const halves = this.panorama.querySelectorAll<HTMLElement>("[data-chroma]");
+    await Promise.all(
+      Array.from(halves).map((half) => this.chromaKeyLayer(half)),
+    );
+  }
+
+  private async chromaKeyLayer(half: HTMLElement) {
+    const src = half.dataset.chroma;
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0);
+    const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = id.data;
+    // 绿幕为纯 rgb(0,255,0)；用亮度阈值抠图，保留画面里较暗的绿色植物内容。
+    // g>=240 且 R/B 极低 -> 全透明；214..240 软边过渡；其余保留。
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i];
+      const g = d[i + 1];
+      const b = d[i + 2];
+      let a = d[i + 3];
+      if (g >= 240 && r < 50 && b < 50) {
+        a = 0;
+      } else if (g >= 214 && r < 50 && b < 50) {
+        a = (a * (240 - g)) / 26;
+      }
+      d[i + 3] = a;
+    }
+    ctx.putImageData(id, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png"),
+    );
+    if (blob) {
+      half.style.backgroundImage = `url("${URL.createObjectURL(blob)}")`;
+    }
+  }
+}

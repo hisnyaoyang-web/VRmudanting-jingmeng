@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -70 140 140">
+  <defs>
+    <radialGradient id="mdg" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e74230"/>
+      <stop offset="1" stop-color="#b81c16"/>
+    </radialGradient>
+    <mask id="mdm">
+      <rect x="-70" y="-70" width="140" height="140" fill="#fff"/>
+      <circle r="9" fill="#000"/>
+      <circle r="20" fill="none" stroke="#000" stroke-width="3"/>
+      <g fill="#000">
+        <circle cx="0" cy="-44" r="4"/>
+        <circle cx="38" cy="-22" r="4"/>
+        <circle cx="38" cy="22" r="4"/>
+        <circle cx="0" cy="44" r="4"/>
+        <circle cx="-38" cy="22" r="4"/>
+        <circle cx="-38" cy="-22" r="4"/>
+      </g>
+    </mask>
+  </defs>
+  <g fill="url(#mdg)" mask="url(#mdm)">
+    <circle r="40"/>
+    <circle cx="0" cy="-30" r="22"/>
+    <circle cx="26" cy="-15" r="22"/>
+    <circle cx="26" cy="15" r="22"/>
+    <circle cx="0" cy="30" r="22"/>
+    <circle cx="-26" cy="15" r="22"/>
+    <circle cx="-26" cy="-15" r="22"/>
+  </g>
+</svg>
