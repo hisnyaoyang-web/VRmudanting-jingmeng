@@ -1,7 +1,7 @@
 # 幕影铸梦
 
-一个同时验证 PICO WebSpatial、Three.js 深度遮挡和 Injective EVM NFT
-铸造的最小闭环 Demo。
+一个同时验证 PICO WebSpatial、Three.js 深度遮挡、可信节奏成绩和 Injective EVM
+玩家所有权的 dGame MVP。
 
 ## 已实现
 
@@ -14,7 +14,10 @@
 - WalletConnect 二维码连接手机 MetaMask
 - Injective EVM Testnet（Chain ID `1439`）切链与真实 ERC-721 mint
 - 交易等待、错误和区块浏览器反馈
-- Solidity + OpenZeppelin + Foundry 合约及基础测试
+- 三档难度、每日影纹、跨设备进度和可信赛季榜
+- 服务端复算输入事件，不接受客户端自报分数
+- EIP-712 限时领取凭证、章节/赛季唯一 NFT 和持有者内容解锁
+- Solidity + OpenZeppelin + Foundry 安全测试
 
 ## 本地启动
 
@@ -36,9 +39,16 @@ npm run dev
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<Reown Cloud Project ID>
 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=<部署后的合约地址>
+GAME_SIGNER_PRIVATE_KEY=<仅服务端使用的 0x 私钥>
+OFOX_API_KEY=<仅服务端使用的生图服务密钥>
 ```
 
 WalletConnect Project ID 可在 Reown Cloud 创建。它是公开的前端项目标识，不是钱包私钥。
+`GAME_SIGNER_PRIVATE_KEY` 与 `OFOX_API_KEY` 都只能配置为部署平台密钥，禁止使用
+`NEXT_PUBLIC_` 前缀或写入 Git。签名账户只负责签发成绩凭证，不应持有资金或合约 owner 权限。
+
+持久化使用 D1 的逻辑绑定 `DB`，生成的迁移位于 `drizzle/`；NFT 图片和 metadata
+使用 R2 的逻辑绑定 `NFT_ASSETS`。
 
 ## 部署 NFT 合约
 
@@ -56,7 +66,9 @@ forge create src/ShadowRelic.sol:ShadowRelic \
   --gas-price 160000000 \
   --gas-limit 2000000 \
   --broadcast \
-  --constructor-args "ipfs://shadow-relic/"
+  --constructor-args \
+  "https://<your-site>/api/nft/metadata/" \
+  "<GAME_SIGNER_ADDRESS>"
 ```
 
 将返回的合约地址写入 `.env.local`，重启开发服务器。部署账户需要提前从
@@ -71,8 +83,23 @@ forge verify-contract \
   --verifier-url "https://testnet.blockscout.injective.network/api" \
   <CONTRACT_ADDRESS> \
   src/ShadowRelic.sol:ShadowRelic \
-  --constructor-args $(cast abi-encode "constructor(string)" "ipfs://shadow-relic/")
+  --constructor-args $(cast abi-encode "constructor(string,address)" \
+  "https://<your-site>/api/nft/metadata/" "<GAME_SIGNER_ADDRESS>")
 ```
+
+合约域名固定为 `Shadow Relic`、版本 `1`、Injective EVM Testnet Chain ID `1439`。
+部署后必须把新地址同时写入前端配置与签名服务，再执行一次真实的三日资格测试。
+
+## API
+
+公开 API 使用 `/api/v1` 前缀，所有响应包含 `ok`，错误包含稳定的 `code` 与面向用户的
+`message`，并返回 `x-api-version`。完整 OpenAPI 3.1 规范见
+[`docs/openapi.yaml`](docs/openapi.yaml)。
+
+- `POST /api/v1/runs/start`：创建带服务端时间戳、nonce 和赛季信息的演出；
+- `POST /api/v1/runs/finish`：提交最多 128 条输入事件，由服务端复算并签发领取凭证；
+- `GET /api/v1/leaderboard`：查询每钱包最佳可信成绩；
+- `GET /api/v1/progress/:address`：恢复影纹、最佳成绩和链上资产解锁。
 
 ## PICO OS 6 Emulator
 

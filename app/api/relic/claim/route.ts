@@ -1,4 +1,5 @@
-import { env } from "cloudflare:workers";
+import { database, ensureSchema } from "../../_lib/database";
+import { runtimeBindings } from "../../_lib/runtime";
 
 const RPC_URL = "https://k8s.testnet.json-rpc.injective.network/";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -40,6 +41,7 @@ function avatarPrompt(input: Required<Pick<ClaimRequest, "grade" | "score" | "st
 }
 
 export async function POST(request: Request) {
+  const env = runtimeBindings();
   if (!env.OFOX_API_KEY) return json({ error: "生图服务尚未配置" }, 503);
   if (!env.NFT_ASSETS) return json({ error: "NFT 存储尚未配置" }, 503);
 
@@ -86,6 +88,23 @@ export async function POST(request: Request) {
   if (!tokenTopic) return json({ error: "交易中未找到对应的 NFT 铸造记录" }, 400);
 
   const tokenId = BigInt(tokenTopic).toString();
+  await ensureSchema();
+  const verifiedClaim = await database().prepare(
+    `SELECT score, grade, story_id FROM claims
+     WHERE wallet_address = ? AND story_id = ? AND status IN ('issued', 'confirmed')`,
+  ).bind(address, input.storyId || "moongate-night").first<{
+    score: number; grade: "excellent" | "good" | "bad"; story_id: string;
+  }>();
+  if (!verifiedClaim) return json({ error: "未找到该钱包的有效成绩凭证" }, 403);
+  await database().batch([
+    database().prepare(
+      "UPDATE claims SET tx_hash = ?, token_id = ?, status = 'confirmed' WHERE wallet_address = ? AND story_id = ?",
+    ).bind(txHash, tokenId, address, verifiedClaim.story_id),
+    database().prepare(
+      `INSERT INTO unlocks (wallet_address, unlock_id, source, unlocked_at)
+       VALUES (?, ?, ?, ?) ON CONFLICT(wallet_address, unlock_id) DO NOTHING`,
+    ).bind(address, `relic:${verifiedClaim.story_id}`, `token:${tokenId}`, Date.now()),
+  ]);
   const metadataKey = `metadata/${tokenId}.json`;
   const existing = await env.NFT_ASSETS.get(metadataKey);
   const origin = new URL(request.url).origin;
@@ -98,8 +117,8 @@ export async function POST(request: Request) {
     });
   }
 
-  const grade = input.grade === "excellent" || input.grade === "good" ? input.grade : "bad";
-  const score = Math.max(0, Math.min(999999, Math.round(Number(input.score) || 0)));
+  const grade = verifiedClaim.grade;
+  const score = verifiedClaim.score;
   const storyTitle = String(input.storyTitle || "月门照影").slice(0, 80);
   const imageResponse = await fetch("https://api.ofox.ai/v1/images/generations", {
     method: "POST",
@@ -135,7 +154,7 @@ export async function POST(request: Request) {
     image: `${origin}/api/nft/image/${tokenId}`,
     external_url: origin,
     attributes: [
-      { trait_type: "Story", value: input.storyId || "moongate-night" },
+      { trait_type: "Story", value: verifiedClaim.story_id },
       { trait_type: "Performance", value: grade },
       { trait_type: "Score", value: score, display_type: "number" },
       { trait_type: "Art Engine", value: "GPT-Image-2" },

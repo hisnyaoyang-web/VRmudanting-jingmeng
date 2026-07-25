@@ -58,9 +58,18 @@ export const wagmiConfig = createConfig({
 export const shadowRelicAbi = [
   {
     type: "function",
-    name: "mint",
+    name: "claim",
     stateMutability: "nonpayable",
-    inputs: [],
+    inputs: [
+      { name: "player", type: "address" },
+      { name: "storyId", type: "bytes32" },
+      { name: "seasonId", type: "bytes32" },
+      { name: "score", type: "uint32" },
+      { name: "grade", type: "uint8" },
+      { name: "nonce", type: "bytes32" },
+      { name: "deadline", type: "uint256" },
+      { name: "signature", type: "bytes" },
+    ],
     outputs: [{ name: "tokenId", type: "uint256" }],
   },
 ] as const;

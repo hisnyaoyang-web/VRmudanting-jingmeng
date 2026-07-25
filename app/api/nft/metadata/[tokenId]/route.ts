@@ -1,9 +1,10 @@
-import { env } from "cloudflare:workers";
+import { runtimeBindings } from "../../../_lib/runtime";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ tokenId: string }> },
 ) {
+  const env = runtimeBindings();
   if (!env.NFT_ASSETS) return Response.json({ error: "NFT storage unavailable" }, { status: 503 });
   const { tokenId } = await context.params;
   if (!/^\d+$/.test(tokenId)) return Response.json({ error: "Invalid token" }, { status: 400 });

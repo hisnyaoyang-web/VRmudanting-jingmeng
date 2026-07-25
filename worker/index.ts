@@ -5,6 +5,9 @@ import handler from "vinext/server/app-router-entry";
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  NFT_ASSETS?: R2Bucket;
+  OFOX_API_KEY?: string;
+  GAME_SIGNER_PRIVATE_KEY?: `0x${string}`;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -27,6 +30,7 @@ interface ExecutionContext {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    (globalThis as typeof globalThis & { __SHADOWPLAY_BINDINGS__?: Env }).__SHADOWPLAY_BINDINGS__ = env;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {

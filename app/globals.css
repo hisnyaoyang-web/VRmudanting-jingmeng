@@ -22,6 +22,8 @@ html.is-spatial body {
   background-color: transparent;
   --xr-background-material: transparent;
 }
+html.is-spatial .garden-shell { background: transparent; }
+html.is-spatial .garden-shell::after { opacity: .42; }
 button { color: inherit; font: inherit; }
 
 .garden-shell {
@@ -47,19 +49,57 @@ button { color: inherit; font: inherit; }
 .world canvas, .stage-canvas { display: block; width: 100%; height: 100%; }
 
 .webxr-entry {
-  position: absolute;
-  z-index: 9;
-  right: clamp(24px, 4vw, 62px);
-  top: 88px;
-  border: 1px solid rgba(213,172,101,.48);
-  padding: 9px 14px;
-  background: rgba(5,12,14,.68);
-  color: #e9d29f;
-  font: 9px ui-monospace, monospace;
-  letter-spacing: .12em;
+  position: fixed;
+  z-index: 95;
+  right: clamp(16px, 2.2vw, 32px);
+  bottom: clamp(16px, 2.2vw, 30px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  border: 1px solid rgba(244,197,103,.8);
+  border-radius: 4px;
+  padding: 9px 15px;
+  background: rgba(80,25,19,.86);
+  color: #ffe0a2;
+  font: 11px ui-monospace, monospace;
+  letter-spacing: .13em;
   cursor: pointer;
-  backdrop-filter: blur(9px);
+  box-shadow: 0 0 24px rgba(190,73,41,.34);
+  backdrop-filter: blur(10px);
 }
+.webxr-entry span { font-size: 17px; text-shadow: 0 0 10px #ffb35f; }
+.webxr-entry:hover { background: rgba(112,35,24,.94); }
+
+.fullscreen-toggle {
+  position: fixed;
+  z-index: 90;
+  right: clamp(16px, 2.2vw, 32px);
+  bottom: clamp(16px, 2.2vw, 30px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid rgba(213,172,101,.46);
+  border-radius: 4px;
+  background: rgba(5,12,14,.76);
+  color: #ead39e;
+  font: 10px ui-monospace, monospace;
+  letter-spacing: .1em;
+  cursor: pointer;
+  box-shadow: 0 7px 24px rgba(0,0,0,.28);
+  backdrop-filter: blur(10px);
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.fullscreen-toggle span { font-size: 17px; line-height: 1; }
+.fullscreen-toggle:hover {
+  border-color: rgba(240,199,116,.86);
+  background: rgba(16,28,28,.88);
+  transform: translateY(-1px);
+}
+.fullscreen-toggle:focus-visible { outline: 2px solid #d5ac65; outline-offset: 3px; }
+.fullscreen-toggle:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
 .score-hud {
   position: absolute;
@@ -619,6 +659,60 @@ button { color: inherit; font: inherit; }
 .panel-status.success { border-color: #70b388; color: #9ed0ad; }
 .panel-status.error { border-color: #b85d4c; color: #dda296; }
 .panel-status a { display: block; margin-top: 5px; color: #d9b66e; }
+.difficulty-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 16px 0 10px;
+}
+.difficulty-picker button {
+  padding: 8px 4px;
+  border: 1px solid rgba(213,172,101,.22);
+  background: rgba(213,172,101,.05);
+  color: #9e957f;
+  cursor: pointer;
+  font-size: 10px;
+}
+.difficulty-picker button.active {
+  border-color: #b89158;
+  background: rgba(184,145,88,.18);
+  color: #e0c994;
+}
+.difficulty-picker button:disabled { cursor: not-allowed; opacity: .55; }
+.garden-panel .verified-run {
+  margin: 8px 0 14px;
+  color: #bfa66f;
+  font: 10px/1.6 ui-monospace, monospace;
+}
+.holder-unlock {
+  padding: 9px 10px;
+  border: 1px solid rgba(143,197,202,.22);
+  background: rgba(90,154,163,.08);
+  color: #a9d1cf !important;
+}
+.relic-holder .world { filter: hue-rotate(8deg) saturate(1.06); }
+.leaderboard-mini {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(213,172,101,.14);
+}
+.leaderboard-mini h3 {
+  margin: 0 0 8px;
+  color: #b89158;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .13em;
+}
+.leaderboard-mini ol { margin: 0; padding: 0; list-style: none; }
+.leaderboard-mini li {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  color: #9e957f;
+  font: 9px ui-monospace, monospace;
+}
+.leaderboard-mini li b { color: #d6bf8b; font-weight: 500; }
+.leaderboard-mini p { margin: 0; color: #74756a; font-size: 9px; }
 .replay-link {
   margin-top: 17px;
   border: 0;
@@ -662,7 +756,7 @@ button { color: inherit; font: inherit; }
   .control-guide { left: 16px; right: 16px; bottom: 88px; transform: none; overflow-x: auto; }
   .control-guide em { display: none; }
   .garden-panel { right: 18px; }
-  .webxr-entry { right: 18px; top: 78px; }
+  .webxr-entry { right: 14px; bottom: 12px; }
   .score-hud { top: 25%; }
   .script-board {
     top: auto;

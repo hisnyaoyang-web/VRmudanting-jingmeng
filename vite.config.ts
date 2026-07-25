@@ -46,6 +46,7 @@ export default defineConfig(async () => {
   return {
     server: {
       host: true,
+      allowedHosts: ["vincent-material-compensation-save.trycloudflare.com"],
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
