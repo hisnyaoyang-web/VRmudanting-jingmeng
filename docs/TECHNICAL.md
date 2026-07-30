@@ -44,7 +44,6 @@ piying-game/
 ├── public/
 │   ├── scenes/             长卷场景分层图（s1/s2 的 back/mid/front，PNG）
 │   ├── piying/             皮影 GLB 模型与贴图
-│   ├── characters/         音游剧情角色立绘
 │   ├── props/              碎片图 + 4 种杜丽娘形象立绘
 │   ├── mirror/             铜镜图片（已抠绿，RGBA PNG）
 │   ├── audio/
@@ -319,7 +318,7 @@ npx tsc --noEmit # 类型检查（无输出）
 ## 10. 已知限制
 
 - 音游剧情（`story.json`）的 outro 分支未使用 `grade` / `minRatio` 字段，结局选择依赖数组顺序。当前 intro 与 outro 阶段已在 UI 中跳过，仅保留 performance。
-- `public/audio/chamber/` 中保留了多个旧版的对白切片文件（`garden-line{1,2,3}.wav`、`mirror-line{1,2,3,4}.wav`、`garden-quote.wav`），目前代码使用的是完整版（`garden-who-are-you.m4a` / `mirror-who-am-i.m4a` / `garden-quote.mp3`），切片文件仅供向后兼容。
+- `public/audio/chamber/` 内现仅保留当前实际使用的音频：BGM（`act1-bgm.mp3`）、对白完整版（`garden-who-are-you.m4a` / `mirror-who-am-i.m4a`）、敲门女训（`knock{1,2,3}.mp3`）、入园 quote（`garden-quote.mp3`）、终幕题词（`finale-line{1,2,3}.wav` / `finale-quote.m4a`）。早期版本的切片文件（`garden-line*` / `mirror-line*` / `garden-quote.wav`）已删除。
 - 项目路径含中文字符，Vite 预打包 three 会失败，已在 `vite.config.ts` 中排除（`optimizeDeps.exclude: ["three", ...]`）。
 - 前景层不能贴满图（z-index 6 > 角色层 5），否则遮挡角色。
 - `sources/audio/` 内含两个大文件（`rhythm-bgm-source.flac` 91MB、`main-bgm-source.flac` 63MB），超过 GitHub 推荐的 50MB 单文件阈值；push 时 GitHub 会给出大文件警告但仍接收。如需彻底解决可改用 [Git LFS](https://git-lfs.github.com)。

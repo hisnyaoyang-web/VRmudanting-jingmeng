@@ -244,7 +244,6 @@ z=8  剪纸屏柱      ← 两幕之间，角色可穿行
 | `public/piying/piying-man-{walk,run,flying}.glb` | 动捕动画 |
 | `public/piying/yaoling-puppet-atlas.png` | 皮影贴图 |
 | `public/mirror/mirror.png` | 铜镜（已抠绿 RGBA PNG） |
-| `public/characters/{shopkeeper,madam-luo,scholar-yun,merchant}-*.{png,webp}` | 音游剧情角色立绘（保留向后兼容，当前不显示） |
 | `public/props/shard-{hands,feet,torso}.png` | 三块碎片图 |
 | `public/props/type-{awaken,explore,firm,free}.png` | 4 种杜丽娘形象立绘 |
 | `public/audio/main/story-bgm.mp3` | 主线 BGM（342s 循环） |

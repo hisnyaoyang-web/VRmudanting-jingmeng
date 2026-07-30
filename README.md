@@ -103,13 +103,12 @@ src/
 public/
 ├── scenes/                长卷场景分层图（s1/s2 后中前三层 + chroma key 绿幕图）
 ├── piying/                皮影 GLB 模型（rig-hi + walk/run/flying 动捕）
-├── characters/            音游剧情角色立绘（掌柜 / 罗夫人 / 沈公子 / 云书生）
 ├── props/                 碎片图（hands/feet/torso）+ 4 种杜丽娘形象立绘
 ├── mirror/                铜镜图片（已抠绿 RGBA PNG）
 ├── audio/
 │   ├── main/              主线 BGM（瑞鸣《牡丹亭》342s 循环）
 │   ├── chamber/           闺房对白、敲门、终幕题词音频
-│   └── rhythm/            音游三关 BGM + 备用 finale
+│   └── rhythm/            音游三关 BGM
 ├── stage/                 月门戏台背景
 ├── papercut/              剪纸装饰素材
 └── stories/moongate-night/   音游剧情 JSON（StoryPackage schema）
