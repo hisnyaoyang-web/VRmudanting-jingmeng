@@ -1,0 +1,132 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23d98a3c'/%3E%3Ccircle cx='16' cy='14' r='8' fill='%232a1220'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>惊梦：寻回杜丽娘</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      (function () {
+        var orig = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+          if (type === "webgl" || type === "webgl2" || type === "experimental-webgl") {
+            attrs = Object.assign({}, attrs || {}, { preserveDrawingBuffer: true });
+          }
+          return orig.call(this, type, attrs);
+        };
+      })();
+    </script>
+    <style>
+      body.vr-active #stage,
+      body.vr-active .vignette,
+      body.vr-active .grain,
+      body.vr-active .stage-frame,
+      body.vr-active #stage-dim,
+      body.vr-active #hint { visibility: hidden; }
+      #VRButton { position:fixed !important; bottom:24px !important; right:24px !important; left:auto !important; }
+      #vr-hud {
+        position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+        z-index: 999; font-family: "Kaiti SC","KaiTi","STKaiti",serif;
+        color: #f2d8a8; font-size: 14px; letter-spacing: .1em; opacity: .7;
+        pointer-events: none;
+      }
+      .hint { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      .hint-en { font-style: normal; font-size: .52em; letter-spacing: .22em; text-transform: uppercase; opacity: .6; }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div class="panorama">
+        <div class="layer layer-back" data-depth="0.03">
+          <div class="half s1-back"></div>
+          <div class="half s2-back"></div>
+          <div class="half s2-back"></div>
+        </div>
+        <div class="layer layer-mid" data-depth="0.06">
+          <div class="half s1-mid"></div>
+          <div class="half s2-mid" data-chroma="/scenes/s2-mid.png"></div>
+          <div class="half s2-mid" data-chroma="/scenes/s2-mid.png"></div>
+        </div>
+        <div id="puppet-layer"></div>
+        <div class="layer layer-front" data-depth="0.11">
+          <div class="half s1-front"></div>
+          <div class="half s2-front" data-chroma="/scenes/s2-front.png"></div>
+          <div class="half s2-front" data-chroma="/scenes/s2-front.png"></div>
+        </div>
+        <div class="seam" aria-hidden="true"></div>
+        <div class="scene-screen" aria-hidden="true">
+          <svg class="screen-svg" viewBox="0 0 180 1000" preserveAspectRatio="xMidYMid meet">
+            <path d="M8 46 Q90 4 172 46 L160 84 L20 84 Z" fill="#5c120f" stroke="#d9a03f" stroke-width="2.5"/>
+            <rect x="20" y="84" width="140" height="14" fill="#3a0f0c" stroke="#d9a03f" stroke-width="2"/>
+            <rect x="28" y="100" width="124" height="790" fill="#1f0a09" opacity="0.6"/>
+            <rect x="28" y="100" width="124" height="790" fill="none" stroke="#d9a03f" stroke-width="3"/>
+            <g stroke="#a9762c" stroke-width="2" opacity="0.85">
+              <line x1="59" y1="108" x2="59" y2="882"/><line x1="90" y1="108" x2="90" y2="882"/><line x1="121" y1="108" x2="121" y2="882"/>
+              <line x1="28" y1="232" x2="152" y2="232"/><line x1="28" y1="362" x2="152" y2="362"/>
+              <line x1="28" y1="628" x2="152" y2="628"/><line x1="28" y1="758" x2="152" y2="758"/>
+            </g>
+            <circle cx="90" cy="495" r="52" fill="#150705" opacity="0.55" stroke="#d9a03f" stroke-width="3"/>
+            <circle cx="90" cy="495" r="52" fill="none" stroke="#f0c060" stroke-width="1" opacity="0.7"/>
+            <g fill="none" stroke="#d9a03f" stroke-width="1.5" opacity="0.85" transform="translate(90 495)">
+              <path d="M0 -30 C12 -20 12 -6 0 0 C-12 -6 -12 -20 0 -30 Z"/>
+              <path d="M0 30 C12 20 12 6 0 0 C-12 6 -12 20 0 30 Z"/>
+              <path d="M-30 0 C-20 -12 -6 -12 0 0 C-6 12 -20 12 -30 0 Z"/>
+              <path d="M30 0 C20 -12 6 -12 0 0 C6 12 20 12 30 0 Z"/>
+              <circle cx="0" cy="0" r="4" fill="#f0c060" stroke="none" opacity="0.9"/>
+            </g>
+            <rect x="22" y="886" width="136" height="16" fill="#3a0f0c" stroke="#d9a03f" stroke-width="2"/>
+            <path d="M12 902 L168 902 L160 936 L20 936 Z" fill="#241008" stroke="#d9a03f" stroke-width="2"/>
+            <rect x="4" y="936" width="172" height="22" rx="3" fill="#180b07" stroke="#d9a03f" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="scene-screen screen-2" aria-hidden="true">
+          <svg class="screen-svg" viewBox="0 0 180 1000" preserveAspectRatio="xMidYMid meet">
+            <path d="M8 46 Q90 4 172 46 L160 84 L20 84 Z" fill="#5c120f" stroke="#d9a03f" stroke-width="2.5"/>
+            <rect x="20" y="84" width="140" height="14" fill="#3a0f0c" stroke="#d9a03f" stroke-width="2"/>
+            <rect x="28" y="100" width="124" height="790" fill="#1f0a09" opacity="0.6"/>
+            <rect x="28" y="100" width="124" height="790" fill="none" stroke="#d9a03f" stroke-width="3"/>
+            <g stroke="#a9762c" stroke-width="2" opacity="0.85">
+              <line x1="59" y1="108" x2="59" y2="882"/><line x1="90" y1="108" x2="90" y2="882"/><line x1="121" y1="108" x2="121" y2="882"/>
+              <line x1="28" y1="232" x2="152" y2="232"/><line x1="28" y1="362" x2="152" y2="362"/>
+              <line x1="28" y1="628" x2="152" y2="628"/><line x1="28" y1="758" x2="152" y2="758"/>
+            </g>
+            <circle cx="90" cy="495" r="52" fill="#150705" opacity="0.55" stroke="#d9a03f" stroke-width="3"/>
+            <circle cx="90" cy="495" r="52" fill="none" stroke="#f0c060" stroke-width="1" opacity="0.7"/>
+            <g fill="none" stroke="#d9a03f" stroke-width="1.5" opacity="0.85" transform="translate(90 495)">
+              <path d="M0 -30 C12 -20 12 -6 0 0 C-12 -6 -12 -20 0 -30 Z"/>
+              <path d="M0 30 C12 20 12 6 0 0 C-12 6 -12 20 0 30 Z"/>
+              <path d="M-30 0 C-20 -12 -6 -12 0 0 C-6 12 -20 12 -30 0 Z"/>
+              <path d="M30 0 C20 -12 6 -12 0 0 C6 12 20 12 30 0 Z"/>
+              <circle cx="0" cy="0" r="4" fill="#f0c060" stroke="none" opacity="0.9"/>
+            </g>
+            <rect x="22" y="886" width="136" height="16" fill="#3a0f0c" stroke="#d9a03f" stroke-width="2"/>
+            <path d="M12 902 L168 902 L160 936 L20 936 Z" fill="#241008" stroke="#d9a03f" stroke-width="2"/>
+            <rect x="4" y="936" width="172" height="22" rx="3" fill="#180b07" stroke="#d9a03f" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div class="stage-frame" aria-hidden="true">
+      <div class="valance valance-top"></div>
+      <div class="valance valance-bottom"></div>
+      <div class="curtain curtain-left"></div>
+      <div class="curtain curtain-right"></div>
+    </div>
+
+    <div id="stage-dim"></div>
+
+    <div id="hint" class="hint hidden">
+      <span class="hint-key">&larr;</span><span class="hint-key">&rarr;</span> 左右移动<i class="hint-en">Move with the Arrow Keys</i>
+    </div>
+
+    <script type="module">
+      import "/src/main.ts";
+      import "/src/vr-layer.ts";
+    </script>
+  </body>
+</html>

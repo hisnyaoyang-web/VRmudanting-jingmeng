@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 176">
+  <defs>
+    <radialGradient id="lng" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#f0613f"/>
+      <stop offset="0.6" stop-color="#d2311f"/>
+      <stop offset="1" stop-color="#a91710"/>
+    </radialGradient>
+    <mask id="lanm">
+      <rect width="120" height="176" fill="#fff"/>
+      <path d="M60 56c-15 9-15 39 0 54 15-15 15-45 0-54z" fill="#000"/>
+      <circle cx="44" cy="88" r="5" fill="#000"/>
+      <circle cx="76" cy="88" r="5" fill="#000"/>
+      <path d="M60 50v66" stroke="#000" stroke-width="3"/>
+    </mask>
+  </defs>
+  <line x1="60" y1="0" x2="60" y2="26" stroke="#7d120c" stroke-width="2.5"/>
+  <rect x="44" y="24" width="32" height="11" rx="2" fill="#e0a52e"/>
+  <rect x="38" y="33" width="44" height="11" fill="#a91710"/>
+  <ellipse cx="60" cy="86" rx="35" ry="44" fill="url(#lng)" mask="url(#lanm)"/>
+  <g stroke="#e0a52e" stroke-width="2" opacity="0.6" fill="none">
+    <path d="M32 58c0 26 0 24 0 44"/>
+    <path d="M88 58c0 26 0 24 0 44"/>
+  </g>
+  <rect x="38" y="128" width="44" height="11" fill="#a91710"/>
+  <rect x="46" y="137" width="28" height="9" rx="2" fill="#e0a52e"/>
+  <path d="M60 146v26M53 150c2 13 2 13 0 20M67 150c-2 13-2 13 0 20" stroke="#e0a52e" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</svg>
