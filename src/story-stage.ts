@@ -300,6 +300,14 @@ const UI_STYLE = `
 .md-ghost { padding:12px 26px; font-size:clamp(15px,1.8vw,18px); color:var(--paper); background:transparent;
   border:1px solid rgba(217,160,63,.55); }
 .md-ghost:hover{ background:rgba(217,160,63,.12); }
+#md-wallet-shortcut { position:fixed; top:max(18px, env(safe-area-inset-top)); right:max(18px, env(safe-area-inset-right));
+  z-index:68; display:inline-flex; flex-direction:column; align-items:center; gap:2px; padding:10px 18px 9px;
+  font-size:clamp(13px,1.45vw,15px); letter-spacing:.18em; text-indent:.18em; color:var(--paper);
+  background:linear-gradient(180deg,rgba(28,12,18,.9),rgba(14,6,10,.96)); border:1px solid rgba(217,160,63,.55);
+  box-shadow:0 10px 28px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter:blur(8px); }
+#md-wallet-shortcut .md-en { font-size:.62em; letter-spacing:.22em; text-indent:.22em; color:rgba(242,216,168,.55); }
+#md-wallet-shortcut:hover { transform:translateY(-1px); box-shadow:0 14px 30px rgba(217,138,60,.2); }
+#md-wallet-shortcut.hidden { display:none !important; }
 
 /* 开场 */
 #md-intro .md-card { max-width:min(580px,88vw); padding:42px 36px 32px; text-align:center; color:var(--paper);
@@ -647,6 +655,7 @@ export class StoryStage {
     this.finaleText = this.finaleEl.querySelector(".md-finale-text")!;
     this.finaleQuoteEl = this.finaleEl.querySelector("#md-finale-quote")!;
     this.introEl = this.inject('<div id="md-intro" class="mudan-overlay"><video class="md-intro-video" src="/video/intro-bg.mp4" autoplay muted loop playsinline preload="auto"></video><div class="md-intro-shade" aria-hidden="true"></div><div class="md-intro-frame" aria-hidden="true"></div><div class="md-intro-content"><p class="md-eyebrow"><span>梦入牡丹亭 · 皮影戏<i class="md-en">Dream into the Peony Pavilion · Shadow Puppetry</i></span></p><div class="md-title-row"><div class="md-title-col"><h1 class="md-title">惊梦</h1><i class="md-en md-en-title">The Dream</i></div><span class="md-seal" aria-hidden="true">牡丹亭</span></div><div class="md-sub-wrap"><p class="md-title-sub"><span>寻回杜丽娘</span></p><i class="md-en">Recovering Du Liniang</i></div><p class="md-intro-hint"><span class="md-ctl-keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd></span><span>左右移动，走到目标即可<i class="md-en">Move with the arrow keys</i></span></p><p class="md-note">剧情会自动展开，无需按键<i class="md-en">The story unfolds on its own</i></p><button class="md-btn md-primary" type="button"><span>开始体验</span><i class="md-en md-en-btn">Begin</i></button></div></div>');
+    this.inject('<button id="md-wallet-shortcut" class="md-btn md-ghost" type="button"><span>连接钱包</span><i class="md-en">Wallet</i></button>');
 
     this.doorGlowEl = this.inject('<div id="md-door" class="hidden" aria-hidden="true"></div>', this.panorama);
     this.mirrorEl = this.inject('<div id="md-mirror"><img class="mirror-img" src="/mirror/mirror.png" alt="" /><div class="mirror-shadow-glow"></div><div class="mirror-frags"><span class="frag frag-hands">双手<i class="md-en">Hands</i></span><span class="frag frag-feet">双脚<i class="md-en">Feet</i></span><span class="frag frag-torso">躯干<i class="md-en">Torso</i></span></div></div>', this.panorama);
@@ -724,6 +733,8 @@ export class StoryStage {
     this.finaleEl.querySelectorAll("button")[1].addEventListener("click", () => this.endExperience());
     const nftBtn = this.finaleEl.querySelector("#md-nft-btn");
     if (nftBtn) nftBtn.addEventListener("click", () => { void this.openNftPanel(); });
+    const walletShortcut = document.getElementById("md-wallet-shortcut");
+    if (walletShortcut) walletShortcut.addEventListener("click", () => { void this.openNftPanel(); });
   }
 
   private async openNftPanel() {

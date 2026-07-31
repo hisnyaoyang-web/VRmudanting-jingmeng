@@ -35,9 +35,13 @@ export function NftPanelView({ onClose }: NftPanelViewProps) {
     hash,
   });
   const didBurstRef = useRef(false);
+  const injectedConnector = connectors.find((connector) => connector.id === "injected");
+  const walletConnectConnector = connectors.find((connector) => connector.id === "walletConnect");
 
-  const walletReady = Boolean(walletConnectProjectId && connectors.length);
+  const walletReady = Boolean(connectors.length);
   const success = receipt.isSuccess;
+  const showConnectionMethods = !isConnected && walletReady;
+  const showPrimaryAction = isConnected || !walletReady;
 
   useEffect(() => {
     if (!success || didBurstRef.current) return;
@@ -49,10 +53,19 @@ export function NftPanelView({ onClose }: NftPanelViewProps) {
     if (!success) didBurstRef.current = false;
   }, [success, hash]);
 
-  const connectWallet = () => {
-    if (connectors[0]) {
+  const connectInjectedWallet = () => {
+    if (injectedConnector) {
       connect({
-        connector: connectors[0],
+        connector: injectedConnector,
+        chainId: injectiveTestnet.id,
+      });
+    }
+  };
+
+  const connectWalletConnect = () => {
+    if (walletConnectConnector) {
+      connect({
+        connector: walletConnectConnector,
         chainId: injectiveTestnet.id,
       });
     }
@@ -74,7 +87,7 @@ export function NftPanelView({ onClose }: NftPanelViewProps) {
   const primaryAction = !walletReady
     ? { label: "待配置", action: undefined as (() => void) | undefined }
     : !isConnected
-      ? { label: isConnecting ? "扫码中" : "连接钱包", action: connectWallet }
+      ? { label: isConnecting ? "连接中" : "连接钱包", action: injectedConnector ? connectInjectedWallet : connectWalletConnect }
       : !contractAddress
         ? { label: "待部署", action: undefined }
         : success
@@ -83,9 +96,11 @@ export function NftPanelView({ onClose }: NftPanelViewProps) {
             ? { label: "铸造中", action: undefined }
             : { label: "铸造 NFT", action: mint };
 
-  let status = "手机钱包扫码连接";
-  if (!walletConnectProjectId) {
-    status = "未配置 WalletConnect Project ID";
+  let status = "可使用浏览器插件或手机扫码连接";
+  if (!connectors.length) {
+    status = walletConnectProjectId
+      ? "未检测到浏览器插件，可使用手机扫码连接"
+      : "未检测到浏览器插件，且未配置 WalletConnect Project ID";
   } else if (writeError) {
     status = writeError instanceof BaseError ? writeError.shortMessage : writeError.message;
   } else if (connectError) {
@@ -122,15 +137,38 @@ export function NftPanelView({ onClose }: NftPanelViewProps) {
         </a>
       ) : null}
 
+      {showConnectionMethods ? (
+        <div className="nft-btns">
+          <button
+            className="nft-btn nft-primary"
+            type="button"
+            onClick={connectInjectedWallet}
+            disabled={!injectedConnector || isConnecting}
+          >
+            {isConnecting && injectedConnector ? "连接中" : "浏览器插件"}
+          </button>
+          <button
+            className="nft-btn nft-ghost"
+            type="button"
+            onClick={connectWalletConnect}
+            disabled={!walletConnectConnector || isConnecting}
+          >
+            {isConnecting && walletConnectConnector && !injectedConnector ? "连接中" : "手机扫码"}
+          </button>
+        </div>
+      ) : null}
+
       <div className="nft-btns">
-        <button
-          className="nft-btn nft-primary"
-          type="button"
-          onClick={primaryAction.action}
-          disabled={!primaryAction.action}
-        >
-          {primaryAction.label}
-        </button>
+        {showPrimaryAction ? (
+          <button
+            className="nft-btn nft-primary"
+            type="button"
+            onClick={primaryAction.action}
+            disabled={!primaryAction.action}
+          >
+            {primaryAction.label}
+          </button>
+        ) : null}
         <button className="nft-btn nft-ghost" type="button" onClick={onClose}>
           {success ? "完成" : "关闭"}
         </button>

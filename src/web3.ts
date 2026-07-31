@@ -7,7 +7,7 @@
  * 这里直接复用第二个项目的 Web3 接入方式，但暴露给第一个项目原有的终幕 UI。
  */
 import { createConfig, http } from "wagmi";
-import { walletConnect } from "wagmi/connectors";
+import { injected, walletConnect } from "wagmi/connectors";
 import { defineChain, type Address } from "viem";
 import {
   BLOCK_EXPLORER,
@@ -46,6 +46,13 @@ function getSiteUrl() {
 
 const connectors = WALLETCONNECT_PROJECT_ID && typeof window !== "undefined"
   ? [
+      ...(typeof window !== "undefined" && (window as Window & { ethereum?: unknown }).ethereum
+        ? [
+            injected({
+              shimDisconnect: true,
+            }),
+          ]
+        : []),
       walletConnect({
         projectId: WALLETCONNECT_PROJECT_ID,
         showQrModal: true,
@@ -57,7 +64,13 @@ const connectors = WALLETCONNECT_PROJECT_ID && typeof window !== "undefined"
         },
       }),
     ]
-  : [];
+  : (typeof window !== "undefined" && (window as Window & { ethereum?: unknown }).ethereum
+      ? [
+          injected({
+            shimDisconnect: true,
+          }),
+        ]
+      : []);
 
 export const wagmiConfig = createConfig({
   chains: [injectiveTestnet],
