@@ -1,162 +1,60 @@
-﻿/**
+/**
  * NFT 铸造面板
- * 在结算界面（S12）显示，允许玩家连接钱包、铸造「杜丽娘」纪念 NFT。
+ * 在结算界面显示，但内部逻辑改为复用第二个项目的 wagmi + WalletConnect 流程。
  */
-import {
-  connectWallet, mintRelic,
-  isWeb3Configured, injectiveTestnet,
-  type WalletInfo, type ClaimResult,
-} from "./web3";
-import { fx } from "./effects";
-
-type PanelState = "idle" | "connecting" | "connected" | "minting" | "success" | "error";
+import { createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
+import { NftPanelView } from "./nft-panel-view";
+import { wagmiConfig } from "./web3";
 
 export class NftPanel {
   private el: HTMLElement;
-  private contentEl: HTMLElement;
-  private wallet: WalletInfo | null = null;
-  private state: PanelState = "idle";
+  private root: Root;
+  private queryClient = new QueryClient();
 
   constructor(parent: HTMLElement = document.body) {
     this.el = this.inject(parent);
-    this.contentEl = this.el.querySelector(".nft-content")!;
+    this.root = createRoot(this.el.querySelector(".nft-root") as HTMLElement);
     this.render();
   }
 
   private inject(parent: HTMLElement): HTMLElement {
     const wrap = document.createElement("template");
-    wrap.innerHTML = '<div id="nft-panel" class="hidden">' +
-      '<div class="nft-card nft-content"></div>' +
-      "</div>";
+    wrap.innerHTML = '<div id="nft-panel" class="hidden"><div class="nft-root"></div></div>';
     const node = wrap.content.firstElementChild as HTMLElement;
     parent.appendChild(node);
 
-    const style = document.createElement("style");
-    style.textContent = NFT_PANEL_STYLE;
-    document.head.appendChild(style);
+    if (!document.getElementById("nft-panel-style")) {
+      const style = document.createElement("style");
+      style.id = "nft-panel-style";
+      style.textContent = NFT_PANEL_STYLE;
+      document.head.appendChild(style);
+    }
     return node;
   }
 
   show() {
     this.el.classList.remove("hidden");
-    this.render();
   }
+
   hide() {
     this.el.classList.add("hidden");
   }
 
-  private async handleConnect() {
-    if (!isWeb3Configured()) {
-      this.state = "error";
-      this.render();
-      return;
-    }
-    this.state = "connecting";
-    this.render();
-    try {
-      this.wallet = await connectWallet();
-      this.state = "connected";
-    } catch (err: any) {
-      console.error("wallet connect failed", err);
-      this.state = "error";
-    }
-    this.render();
-  }
-
-  private async handleMint() {
-    if (!this.wallet) return;
-    this.state = "minting";
-    this.render();
-    try {
-      const provider = (window as any).ethereum;
-      const result = await mintRelic(
-        provider,
-        this.wallet.address,
-        3000,
-        2,
-      );
-      this.state = "success";
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-      fx.burst(cx, cy, 80, 44);
-      this.render(result);
-    } catch (err: any) {
-      console.error("mint failed", err);
-      this.state = "error";
-      this.render();
-    }
-  }
-
-  private render(result?: ClaimResult) {
-    const configured = isWeb3Configured();
-    let html = "";
-
-    if (!configured) {
-      html =
-        '<div class="nft-icon">&#x1F4DA;</div>' +
-        '<h3>链上信物</h3>' +
-        '<p class="nft-desc">完成体验后，可将你寻回的杜丽娘铸为链上 NFT。</p>' +
-        '<p class="nft-note">区块链功能待配置。部署 ShadowRelic 合约后，在 experience2/web3-config.ts 中填写地址与密钥即可启用。</p>' +
-        '<div class="nft-btns"><button class="nft-btn nft-close" type="button">关闭</button></div>';
-    } else if (this.state === "idle") {
-      html =
-        '<div class="nft-icon">&#x1F3AD;</div>' +
-        '<h3>链上信物</h3>' +
-        '<p class="nft-desc">你已寻回杜丽娘的双手、双脚与躯干。</p>' +
-        '<p class="nft-desc">连接钱包，将这份觉醒铸为 Injective 链上的永久信物。</p>' +
-        '<div class="nft-btns"><button class="nft-btn nft-primary nft-connect" type="button">连接钱包</button>' +
-        '<button class="nft-btn nft-ghost nft-close" type="button">稍后</button></div>';
-    } else if (this.state === "connecting") {
-      html =
-        '<div class="nft-icon nft-spin">&#x269B;</div>' +
-        '<h3>正在连接…</h3>' +
-        '<p class="nft-desc">请在弹出的钱包中确认连接。</p>' +
-        '<p class="nft-note">手机扫码请使用 WalletConnect 二维码。</p>';
-    } else if (this.state === "connected" && this.wallet) {
-      const short = this.wallet.address.slice(0, 6) + "..." + this.wallet.address.slice(-4);
-      html =
-        '<div class="nft-icon">&#x1F3AD;</div>' +
-        '<h3>钱包已连接</h3>' +
-        '<p class="nft-wallet">' + short + "</p>" +
-        '<p class="nft-desc">网络：Injective EVM Testnet</p>' +
-        '<p class="nft-desc">点击铸造，在你的钱包中确认链上交易。</p>' +
-        '<div class="nft-btns"><button class="nft-btn nft-primary nft-mint" type="button">铸造 NFT</button>' +
-        '<button class="nft-btn nft-ghost nft-close" type="button">取消</button></div>';
-    } else if (this.state === "minting") {
-      html =
-        '<div class="nft-icon nft-spin">&#x269B;</div>' +
-        '<h3>正在铸造…</h3>' +
-        '<p class="nft-desc">交易已提交，等待区块确认。</p>' +
-        '<p class="nft-note">Injective Testnet 通常需要数秒至数十秒。</p>';
-    } else if (this.state === "success" && result) {
-      html =
-        '<div class="nft-icon">&#x2728;</div>' +
-        '<h3>铸造成功</h3>';
-      if (result.tokenId) {
-        html += '<p class="nft-desc">Token #' + result.tokenId + "</p>";
-      }
-      html +=
-        '<a class="nft-link" href="' + result.blockExplorerUrl + '" target="_blank" rel="noopener">在 Blockscout 查看交易</a>' +
-        '<div class="nft-btns"><button class="nft-btn nft-ghost nft-close" type="button">完成</button></div>';
-    } else {
-      html =
-        '<div class="nft-icon">&#x26A0;</div>' +
-        '<h3>操作失败</h3>' +
-        '<p class="nft-desc">可能是钱包未连接、网络错误或用户拒绝了交易。</p>' +
-        '<div class="nft-btns"><button class="nft-btn nft-primary nft-retry" type="button">重试</button>' +
-        '<button class="nft-btn nft-ghost nft-close" type="button">关闭</button></div>';
-    }
-
-    this.contentEl.innerHTML = html;
-
-    const connectBtn = this.contentEl.querySelector(".nft-connect");
-    if (connectBtn) connectBtn.addEventListener("click", () => this.handleConnect());
-    const mintBtn = this.contentEl.querySelector(".nft-mint");
-    if (mintBtn) mintBtn.addEventListener("click", () => this.handleMint());
-    const retryBtn = this.contentEl.querySelector(".nft-retry");
-    if (retryBtn) retryBtn.addEventListener("click", () => { this.state = "idle"; this.wallet = null; this.render(); });
-    const closeBtns = this.contentEl.querySelectorAll(".nft-close");
-    closeBtns.forEach((b) => b.addEventListener("click", () => this.hide()));
+  private render() {
+    this.root.render(
+      createElement(
+        WagmiProvider,
+        { config: wagmiConfig },
+        createElement(
+          QueryClientProvider,
+          { client: this.queryClient },
+          createElement(NftPanelView, { onClose: () => this.hide() }),
+        ),
+      ),
+    );
   }
 }
 
@@ -181,6 +79,7 @@ const NFT_PANEL_STYLE = `
 .nft-link:hover { background: rgba(217,160,63,.12); }
 .nft-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
 .nft-btn { font-family: var(--serif); letter-spacing:.15em; cursor: pointer; border-radius: 4px; transition: transform .12s ease,box-shadow .2s; border: none; }
+.nft-btn:disabled { cursor: not-allowed; opacity: .55; transform: none; box-shadow: none; }
 .nft-primary { padding: 12px 28px; font-size: clamp(15px,1.8vw,18px); color: #1a0a08;
   background: linear-gradient(180deg,var(--gold-bright),var(--ember)); border: 1px solid var(--gold-bright);
   box-shadow: 0 6px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.4); }
