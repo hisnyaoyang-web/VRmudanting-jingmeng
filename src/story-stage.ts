@@ -1,7 +1,6 @@
 import { Puppet, type PuppetState } from "./puppet";
 import { mountRhythm, unmountRhythm, type Root } from "./rhythm/rhythm-mount";
 import { fx } from "./effects";
-import { NftPanel } from "./nft-panel";
 
 /**
  * 梦入牡丹亭 · 精修版故事舞台（S0-S12 完整状态机）
@@ -39,6 +38,7 @@ const LEAVE_TEXT_HOLD = 10.0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document) =>
   root.querySelector(sel) as T | null;
+type NftPanel = import("./nft-panel").NftPanel;
 
 type GState =
   | "intro" | "approach" | "rewardHands" | "freeRoam"
@@ -572,6 +572,7 @@ export class StoryStage {
   private finaleKeys: HTMLElement;
   private finaleText: HTMLElement;
   private nftPanel: NftPanel | null = null;
+  private nftPanelLoading: Promise<void> | null = null;
   private clickPromptEl: HTMLElement | null = null;
   private behavior = {
     knockIntervals: [] as number[],
@@ -722,10 +723,25 @@ export class StoryStage {
     this.finaleEl.querySelectorAll("button")[0].addEventListener("click", () => this.replay());
     this.finaleEl.querySelectorAll("button")[1].addEventListener("click", () => this.endExperience());
     const nftBtn = this.finaleEl.querySelector("#md-nft-btn");
-    if (nftBtn) nftBtn.addEventListener("click", () => {
-      if (!this.nftPanel) this.nftPanel = new NftPanel();
+    if (nftBtn) nftBtn.addEventListener("click", () => { void this.openNftPanel(); });
+  }
+
+  private async openNftPanel() {
+    if (this.nftPanel) {
       this.nftPanel.show();
-    });
+      return;
+    }
+    if (!this.nftPanelLoading) {
+      this.nftPanelLoading = import("./nft-panel")
+        .then(({ NftPanel }) => {
+          this.nftPanel = new NftPanel();
+          this.nftPanel.show();
+        })
+        .finally(() => {
+          this.nftPanelLoading = null;
+        });
+    }
+    await this.nftPanelLoading;
   }
 
   private beginGame() {

@@ -16,6 +16,7 @@
 
 ```bash
 npm install      # 安装依赖
+cp .env.example .env.local
 npm run dev      # 启动开发服务器
 npx tsc --noEmit # 类型检查
 npm run build    # 生产构建
@@ -23,6 +24,16 @@ npm run preview  # 预览构建产物
 ```
 
 开发服务器默认运行在 `http://localhost:5173/`，打开根路径即为完整体验。
+
+若要启用终幕 NFT 铸造，在 `.env.local` 填写：
+
+```dotenv
+VITE_SITE_URL=http://localhost:5173
+VITE_WALLETCONNECT_PROJECT_ID=<Reown Cloud Project ID>
+VITE_NFT_CONTRACT_ADDRESS=<部署后的合约地址>
+```
+
+未填写时，主线体验保持可用，终幕面板会显示为未配置状态。
 
 ## 游戏流程
 
@@ -76,7 +87,7 @@ npm run preview  # 预览构建产物
 
 - [设计文档](docs/DESIGN.md) —— 玩法流程、场景布局、视觉系统、叙事结构、交互规范、资产清单
 - [技术文档](docs/TECHNICAL.md) —— 架构、构建、状态机、渲染管线、音游集成、UI 系统、开发指南
-- [钱包 / NFT 配置](docs/wallet-setup.md) —— 可选的链上铸造功能配置说明（不影响主线流程）
+- [钱包 / NFT 配置](docs/wallet-setup.md) —— WalletConnect + Injective mint 配置说明（不影响主线流程）
 
 ## 技术栈
 
@@ -91,8 +102,9 @@ src/
 ├── puppet.ts              皮影人偶 Three.js 渲染（GLB 加载、动作重定向、材质抠像）
 ├── effects.ts             粒子 / 屏幕特效（敲门粒子、文字震碎、碎片凝聚、水波、花瓣）
 ├── vr-layer.ts            WebXR / VR 入口（可选，未配置时不影响 2D 体验）
-├── nft-panel.ts           结算 NFT 铸造面板（可选）
-├── web3.ts / web3-config.ts    链上交互（可选，未配置时自动降级为纯展示）
+├── nft-panel.ts           结算 NFT 铸造面板挂载器（可选）
+├── nft-panel-view.tsx     结算 NFT 铸造 React 面板
+├── web3.ts / web3-config.ts    wagmi + WalletConnect 链上交互（可选，未配置时自动降级）
 ├── style.css              长卷舞台样式（四层视差、屏柱、UI 浮层、音游 HUD）
 └── rhythm/                嵌入式音游（React + R3F，WASD/JKL 落键）
     ├── rhythm-mount.ts         挂载 / 卸载 React 音游到 DOM 容器
